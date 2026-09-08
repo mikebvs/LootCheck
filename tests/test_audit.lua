@@ -62,10 +62,10 @@ for i = 1, 6 do
     local row = LootCheck.Audit._rows[i]
     if row:IsShown() then print(("   %s  %s"):format(row.time:GetText(), row.text:GetText())) end
 end
-assert(LootCheckAuditFrame.count:GetText() == (#entries .. " entries"), LootCheckAuditFrame.count:GetText())
+assert(LootCheckAuditFrame.count:GetText():find(#entries .. " entries", 1, true), LootCheckAuditFrame.count:GetText())
 LootCheckAuditFrame.wishlistOnly:SetChecked(true); click(LootCheckAuditFrame.wishlistOnly)
 assert(LootCheck.db.settings.auditWishlistOnly == true, "setting stored")
-assert(LootCheckAuditFrame.count:GetText() == ((#only + 4) .. " entries"), "filtered count: " .. LootCheckAuditFrame.count:GetText())
+assert(LootCheckAuditFrame.count:GetText():find((#only + 4) .. " entries", 1, true), "filtered count: " .. LootCheckAuditFrame.count:GetText())
 LootCheckAuditFrame.wishlistOnly:SetChecked(false); click(LootCheckAuditFrame.wishlistOnly)
 assert(LootCheck.db.settings.auditWishlistOnly == false)
 SlashCmdList.LOOTCHECK("audit")
@@ -86,5 +86,98 @@ assert(#LootCheckDB.auditLog == 3, "log capped at MAX_LOG")
 assert(LootCheckDB.auditLog[3].itemName == "Item 4", "newest kept")
 LootCheck.Audit.MAX_LOG = saved
 LootCheckDB.auditLog = {}
+
+section("the time range dropdown narrows the list")
+LootCheck.db.settings.auditRange = "all"
+LootCheck.db.settings.auditWishlistOnly = false
+LootCheck.Audit:Open()
+local page = LootCheckAuditFrame
+
+assert(page.range, "the dropdown exists")
+assert(page.range:GetText() == "All", "it shows the current range: " .. tostring(page.range:GetText()))
+local allCount = #LootCheck.Audit._entries
+
+-- Every range is offered, in the order asked for
+local wanted = { "Past week", "Past month", "This phase", "Last phase", "All" }
+assert(#LootCheck.Audit.RANGES == #wanted, "five ranges, got " .. #LootCheck.Audit.RANGES)
+for i, text in ipairs(wanted) do
+    assert(LootCheck.Audit.RANGES[i].text == text,
+        ("range %d is %s, expected %s"):format(i, LootCheck.Audit.RANGES[i].text, text))
+end
+
+-- Opening the menu builds one clickable item per range
+page.range:OpenMenu()
+assert(page.range._menu:IsShown(), "the menu opens")
+local shown = 0
+for _, item in ipairs(page.range._menuItems) do
+    if item:IsShown() then shown = shown + 1 end
+end
+assert(shown == #wanted, "one item per range, got " .. shown)
+
+-- Picking one applies it
+local weekItem
+for _, item in ipairs(page.range._menuItems) do
+    if item.value == "week" then weekItem = item end
+end
+assert(weekItem, "the past week item exists")
+click(weekItem)
+assert(not page.range._menu:IsShown(), "picking closes the menu")
+assert(LootCheck.db.settings.auditRange == "week", "the choice is stored")
+assert(page.range:GetText() == "Past week", "and shown on the button")
+
+local weekCount = #LootCheck.Audit._entries
+assert(weekCount <= allCount, "a week cannot hold more than everything")
+assert(page.count:GetText():find("past week", 1, true), page.count:GetText())
+
+section("each range is a real window, and they nest")
+local now = GetServerTime()
+local from = LootCheck.Audit:RangeBounds("week")
+assert(math.abs((now - from) - 7 * 86400) < 5, "past week is seven days back")
+from = LootCheck.Audit:RangeBounds("month")
+assert(math.abs((now - from) - 30 * 86400) < 5, "past month is thirty days back")
+assert(LootCheck.Audit:RangeBounds("all") == nil, "all has no lower bound")
+
+-- This phase follows the phase dates, so it starts when the current phase did
+local current = LootCheck.Phases:Current()
+assert(current, "there is a current phase")
+local phaseFrom, phaseTo = LootCheck.Audit:RangeBounds("phase")
+assert(phaseFrom == current.epoch, "this phase starts at the phase date")
+assert(phaseTo == nil, "and has no end while it is the newest")
+
+-- Last phase ends where this one begins
+local lastFrom, lastTo = LootCheck.Audit:RangeBounds("lastphase")
+assert(lastTo == current.epoch, "last phase ends where this one starts")
+assert(lastFrom and lastFrom < lastTo, "and starts before that")
+
+-- Entry counts respect the windows
+local function countFor(value)
+    LootCheck.db.settings.auditRange = value
+    LootCheck.Audit:Refresh()
+    return #LootCheck.Audit._entries
+end
+local monthCount = countFor("month")
+assert(countFor("week") <= monthCount, "a week fits inside a month")
+assert(monthCount <= allCount, "a month fits inside everything")
+
+local phaseCount = countFor("phase")
+local lastPhaseCount = countFor("lastphase")
+assert(phaseCount + lastPhaseCount <= allCount, "two phases cannot exceed everything")
+for _, e in ipairs(LootCheck.Audit._entries) do
+    assert(e.t >= lastFrom and e.t < lastTo, "every last-phase entry is inside that window")
+end
+
+section("an empty range says which range is empty")
+LootCheck.db.settings.auditRange = "lastphase"
+LootCheckDB.phaseDates = { P1 = "2099-01-01" } -- push every phase into the future
+LootCheck.Audit:Refresh()
+if #LootCheck.Audit._entries == 0 then
+    assert(page.empty:IsShown() and page.empty:GetText():find("last phase", 1, true), page.empty:GetText())
+end
+LootCheckDB.phaseDates = {}
+
+LootCheck.db.settings.auditRange = "all"
+LootCheck.Audit:Refresh()
+assert(#LootCheck.Audit._entries == allCount, "back to everything")
+LootCheck.Window:Hide()
 
 print("\nAUDIT TESTS PASSED")

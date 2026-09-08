@@ -24,7 +24,7 @@ LootCheck never writes to Gargul's data. The only thing it touches in TMBExport 
 | Command | What it does |
 |---|---|
 | `/lchelp` | Open the LootCheck window: status, basic settings, and buttons to the other pages (`config` / `options` do the same). Every page lives in this one window; `< Back` returns home |
-| `/lchelp audit` | Audit page: every item award newest first (Gargul awards incl. MS/OS rolls, manual marks, your manual-edit commands); a check box hides awards that were not on the winner's wishlist |
+| `/lchelp audit` | Audit page: every item award newest first (Gargul awards incl. MS/OS rolls, manual marks, your manual-edit commands); a dropdown picks the time range and a check box hides awards that were not on the winner's wishlist |
 | `/lchelp help` | Open the command reference window (`/lchelp help chat` prints it to chat instead) |
 | `/lchelp graph` | Toggle the wishlist award graph |
 | `/lchelp graph 30` | Only count awards from the last 30 days (`0` = all time). Setting is remembered. |
@@ -110,6 +110,14 @@ A row counts as a duplicate when that character already wants that item at the s
 - The character does not have to be in the TMB export (PUGs). If they are in your group their class colour is picked up automatically.
 - Edits are stored per raid in `LootCheckDB.overrides`, never inside the import itself, so they survive re-imports. `removewlitem` on an imported entry hides it; `addwlitem` on the same item puts the original imported entry back.
 - The tooltip, the graph and `/lchelp check` all use the edited wishlist.
+
+## Audit
+
+`/lcha` lists every award in chronological order, newest first, including plain MS/OS roll wins, manual received marks and the manual-edit commands you ran.
+
+- The **time range** dropdown offers *Past week*, *Past month*, *This phase*, *Last phase* and *All*. The two phase options follow the dates in `/lchelp phase`, so correcting a phase date moves this list with it.
+- The **check box** hides awards whose item was not on the winner's wishlist.
+- Both are remembered between sessions, and the entry count names the range it is showing.
 
 ## Loot Council
 

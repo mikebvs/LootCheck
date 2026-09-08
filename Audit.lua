@@ -17,10 +17,22 @@ LC.Audit = Audit
 local PAGE = "audit"
 local WIDTH, HEIGHT = 680, 540
 local MARGIN = 22
-local ROW_HEIGHT, ROWS = 20, 21
+local ROW_HEIGHT, ROWS = 20, 20
 local TIME_WIDTH = 92
+local DAY = 86400
 
 Audit.MAX_LOG = 500
+
+--- The time ranges the dropdown offers. "This phase" and "Last phase" are the
+--- dated content phases from Phases.lua, not the graph's wishlist-relative
+--- count, which is a different thing entirely.
+Audit.RANGES = {
+    { value = "week", text = "Past week" },
+    { value = "month", text = "Past month" },
+    { value = "phase", text = "This phase" },
+    { value = "lastphase", text = "Last phase" },
+    { value = "all", text = "All" },
+}
 
 local frame
 local rows = {}
@@ -60,6 +72,58 @@ function Audit:Log(cmd, info)
         table.remove(log, 1)
     end
     self:RefreshIfShown()
+end
+
+------------------------------------------------------------------------------
+-- Time ranges
+------------------------------------------------------------------------------
+
+function Audit:Range()
+    local value = Settings().auditRange
+    for _, range in ipairs(self.RANGES) do
+        if range.value == value then return value end
+    end
+    return "all"
+end
+
+function Audit:RangeText(value)
+    for _, range in ipairs(self.RANGES) do
+        if range.value == value then return range.text end
+    end
+    return "All"
+end
+
+--- from (inclusive), to (exclusive) for a range. Both nil means everything.
+--- The phase ranges follow whatever dates are set, so a phase whose date you
+--- corrected with /lchelp phase moves this list with it.
+function Audit:RangeBounds(value)
+    value = value or self:Range()
+    local now = GetServerTime and GetServerTime() or 0
+
+    if value == "week" then
+        return now - 7 * DAY, nil
+    elseif value == "month" then
+        return now - 30 * DAY, nil
+    elseif value == "phase" then
+        local current = LC.Phases and LC.Phases:Current()
+        if current then return LC.Phases:Bounds(current.key) end
+        return nil, nil
+    elseif value == "lastphase" then
+        local list = LC.Phases and LC.Phases:List() or {}
+        local current = LC.Phases and LC.Phases:Current()
+        if not current then return nil, nil end
+
+        local previous
+        for _, phase in ipairs(list) do
+            if phase.key == current.key then break end
+            if phase.announced then previous = phase end
+        end
+        -- Before the second phase started there is no "last phase" to show
+        if not previous then return math.huge, nil end
+        return LC.Phases:Bounds(previous.key)
+    end
+
+    return nil, nil
 end
 
 ------------------------------------------------------------------------------
@@ -164,6 +228,16 @@ function Audit:Entries(opts)
         entries = kept
     end
 
+    if opts.from or opts.to then
+        local from, to = opts.from or 0, opts.to
+        local kept = {}
+        for _, e in ipairs(entries) do
+            local t = e.t or 0
+            if t >= from and (not to or t < to) then tinsert(kept, e) end
+        end
+        entries = kept
+    end
+
     table.sort(entries, function(a, b)
         if a.t ~= b.t then return a.t > b.t end
         return tostring(a.itemName) < tostring(b.itemName)
@@ -196,29 +270,44 @@ end
 local function BuildPage(page)
     frame = page
 
+    -- Time range, as a plain-frame dropdown (Window:CreateDropdown explains why
+    -- Blizzard's UIDropDownMenu is off limits here)
+    local range = LC.Window:CreateDropdown(page, "LootCheckAuditFrameRange", {
+        width = 132,
+        items = function() return Audit.RANGES end,
+        selected = function() return Audit:Range() end,
+        onSelect = function(value)
+            Settings().auditRange = value
+            Audit:Refresh()
+        end,
+    })
+    range:SetPoint("TOPLEFT", MARGIN, -6)
+    page.range = range
+
+    page.count = LC.Window:Text(page, "GameFontHighlightSmall")
+    page.count:SetPoint("RIGHT", page, "RIGHT", -MARGIN - 4, 0)
+    page.count:SetPoint("TOP", range, "TOP", 0, -4)
+    page.count:SetJustifyH("RIGHT")
+
     local box = CreateFrame("CheckButton", "LootCheckAuditFrameWishlistOnly", page, "UICheckButtonTemplate")
-    box:SetPoint("TOPLEFT", MARGIN - 4, -8)
+    box:SetPoint("TOPLEFT", range, "BOTTOMLEFT", -4, -2)
     box:SetSize(24, 24)
     box:SetScript("OnClick", function(self)
         Settings().auditWishlistOnly = self:GetChecked() and true or false
         Audit:Refresh()
     end)
-    page.count = LC.Window:Text(page, "GameFontHighlightSmall")
-    page.count:SetPoint("RIGHT", page, "RIGHT", -MARGIN - 4, 0)
-    page.count:SetPoint("TOP", box, "TOP", 0, -6)
-    page.count:SetJustifyH("RIGHT")
 
-    -- Bounded against the count so a longer label cannot overrun it
+    -- Bounded on the right so a longer label cannot run off the page
     local label = LC.Window:Text(page, "GameFontHighlight")
     label:SetPoint("LEFT", box, "RIGHT", 4, 0)
-    label:SetPoint("RIGHT", page.count, "LEFT", -8, 0)
+    label:SetPoint("RIGHT", page, "RIGHT", -MARGIN, 0)
     label:SetText("Hide awards that were not on the winner's wishlist")
     page.wishlistOnly = box
     page.wishlistOnlyLabel = label
 
     -- The list sits on a dark inset so it reads as a panel of its own
     local list = LC.Window:CreateInset(page, "LootCheckAuditFrameInset")
-    list:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 0, -4)
+    list:SetPoint("TOPLEFT", box, "BOTTOMLEFT", 4, -4)
     list:SetPoint("BOTTOMRIGHT", -MARGIN, 18)
     page.list = list
 
@@ -264,8 +353,11 @@ function Audit:Refresh()
 
     local s = Settings()
     frame.wishlistOnly:SetChecked(s.auditWishlistOnly and true or false)
+    frame.range:Refresh()
 
-    local entries = self:Entries({ wishlistOnly = s.auditWishlistOnly })
+    local range = self:Range()
+    local from, to = self:RangeBounds(range)
+    local entries = self:Entries({ wishlistOnly = s.auditWishlistOnly, from = from, to = to })
     self._entries = entries
 
     FauxScrollFrame_Update(frame.scroll, #entries, ROWS, ROW_HEIGHT)
@@ -283,8 +375,16 @@ function Audit:Refresh()
         end
     end
 
-    frame.count:SetText(("%d entries"):format(#entries))
-    if #entries == 0 then frame.empty:Show() else frame.empty:Hide() end
+    frame.count:SetText(("%d entries |cff7f7f7f(%s)|r"):format(#entries, self:RangeText(range):lower()))
+
+    if #entries == 0 then
+        frame.empty:SetText(range == "all"
+            and "Nothing to show yet."
+            or ("Nothing in the %s. Change the range above to look further back."):format(self:RangeText(range):lower()))
+        frame.empty:Show()
+    else
+        frame.empty:Hide()
+    end
 end
 
 function Audit:RefreshIfShown()

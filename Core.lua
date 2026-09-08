@@ -47,6 +47,7 @@ local DEFAULTS = {
         graphDays      = 0,     -- graph: only count awards from the last N days (0 = all time)
         graphPhase     = "",    -- graph: "" = all time, else a Phases key like "P3"
         auditWishlistOnly = false, -- audit page: hide awards that were not on the winner's wishlist
+        auditRange     = "all", -- audit page: week / month / phase / lastphase / all
         shareEdits     = false, -- pass giveitem/removeitem/addwlitem/removewlitem on to your share list
         dropsIncludeRare = false, -- raid drops list: show blue items as well as epics
     },

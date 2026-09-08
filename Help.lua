@@ -37,7 +37,7 @@ Help.COMMANDS = {
     { cmd = "/lchelp grouponly",
       desc = "Toggle showing only raiders who are in your current group on the graph." },
     { cmd = "/lchelp audit", aliases = { "/lcha" },
-      desc = "Open the Audit page: every item award in chronological order, newest first - Gargul awards including plain MS / OS roll wins, manual received marks, and your giveitem / removeitem / addwlitem / removewlitem commands. A check box hides awards whose item was not on the winner's wishlist." },
+      desc = "Open the Audit page: every item award in chronological order, newest first - Gargul awards including plain MS / OS roll wins, manual received marks, and your giveitem / removeitem / addwlitem / removewlitem commands. A dropdown limits the list to the past week, the past month, this content phase, last phase, or all of it, and a check box hides awards whose item was not on the winner's wishlist." },
     { cmd = "/lchelp imports", aliases = { "/lchelp data", "/lchelp raids" },
       desc = "Open the Wishlist Data page: pick the active raid from the dropdown, paste a new That's My BIS CSV export as a named import, delete one, or Export the active dataset (manual edits included) as text another LootCheck user can paste into New import to sync with you." },
     { cmd = "/lchelp send",
