@@ -1,0 +1,33 @@
+## Interface: 20506
+## Title: LootCheck |cff33ccff(Gargul + TMB)|r
+## Notes: Greys out raiders on Gargul's TMB tooltips once they have been awarded the item, and graphs wishlist awards per raider using That's My BIS Export data.|n|nCommands: /lchelp
+## Author: Flowmotion
+## Version: 1.0.0
+## X-License: MIT
+# Add "## X-Curse-Project-ID: <id>" here once the CurseForge project exists
+## SavedVariables: LootCheckDB
+## OptionalDeps: Gargul, TMBExport
+## DefaultState: enabled
+
+# Libraries (copies of the ones Gargul ships; MIT / BSD)
+Libs/LibStub/LibStub.lua
+Libs/CallbackHandler-1.0/CallbackHandler-1.0.lua
+Libs/AceComm-3.0/ChatThrottleLib.lua
+Libs/AceComm-3.0/AceComm-3.0.lua
+Libs/LibDeflate/LibDeflate.lua
+Libs/LibDeformat-3.0/LibDeformat-3.0.lua
+
+Core.lua
+Data.lua
+TierTokens.lua
+Tooltip.lua
+Window.lua
+Drops.lua
+Graph.lua
+Wishlist.lua
+Awards.lua
+Imports.lua
+Comm.lua
+Help.lua
+Audit.lua
+Config.lua

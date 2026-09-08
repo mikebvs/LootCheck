@@ -1,0 +1,4 @@
+# Normalise line endings so the addon reads the same on every machine
+* text=auto eol=lf
+*.png binary
+*.zip binary

@@ -1,0 +1,25 @@
+# This working folder also holds an unrelated Warcraft Logs tool ("SR Check").
+# Only the LootCheck addon and its tests belong in this repository.
+shadow_resist.py
+srcheck_gui.pyw
+wcl_credentials.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Build output
+dist/
+build/
+*.zip
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*~
