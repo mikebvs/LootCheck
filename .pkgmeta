@@ -12,6 +12,12 @@ package-as: LootCheck
 
 enable-nolib-creation: no
 
+# Use the hand-written changelog rather than a list of commit messages, which
+# is what the packager generates when this is not set
+manual-changelog:
+    filename: CHANGELOG.md
+    markup-type: markdown
+
 ignore:
     - tests
     - tools

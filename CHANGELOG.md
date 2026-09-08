@@ -3,6 +3,18 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.2] - 2026-09-08
+
+No changes to how the addon behaves in game. Fixes the release pipeline.
+
+### Fixed
+
+- The release workflow passed the CurseForge token as `CF_API_TOKEN`, but the
+  pinned `packager@v2` reads only `CF_API_KEY`, so the upload was skipped while
+  the run still reported success. Both names are now set.
+- The packaged changelog was being generated from commit messages, overwriting
+  this file. `.pkgmeta` now points at it explicitly.
+
 ## [1.0.1] - 2026-09-08
 
 No changes to how the addon behaves in game. This is the first release built
@@ -41,5 +53,6 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.0.2]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.2
 [1.0.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.1
 [1.0.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.0

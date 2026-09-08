@@ -32,4 +32,11 @@ jobs:
         uses: BigWigsMods/packager@v2
         env:
           GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+          # release.sh at the v2 tag reads CF_API_KEY and nothing else;
+          # CF_API_TOKEN was added later, on master. Both names are set from
+          # the one repository secret so this keeps working either way.
+          # The log line "CurseForge ID: <id> [token set]" is the proof it was
+          # picked up - without "[token set]" the upload is skipped silently
+          # and the run still goes green.
+          CF_API_KEY: ${{ secrets.CF_API_TOKEN }}
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
