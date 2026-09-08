@@ -4,7 +4,7 @@
 ## Author: Flowmotion
 ## Version: 1.0.0
 ## X-License: MIT
-# Add "## X-Curse-Project-ID: <id>" here once the CurseForge project exists
+## X-Curse-Project-ID: 1687375
 ## SavedVariables: LootCheckDB
 ## OptionalDeps: Gargul, TMBExport
 ## DefaultState: enabled
