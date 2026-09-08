@@ -3,6 +3,21 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.3] - 2026-09-08
+
+### Fixed
+
+- The window is re-anchored to its top-left corner before sizing begins. It is
+  normally anchored by its centre, which stays fixed while the bottom-right
+  corner is dragged, so the frame grew in both directions at twice the speed of
+  the cursor and appeared to jump the moment a drag started.
+
+### Added
+
+- `/lchelp sizedebug` prints the frame's size, the client's resize bounds, its
+  anchors and scales, and then traces every step of a drag. Undocumented on
+  purpose: it is a diagnostic, not a feature.
+
 ## [1.4.2] - 2026-09-08
 
 ### Fixed
@@ -171,6 +186,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.4.3]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.3
 [1.4.2]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.2
 [1.4.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.1
 [1.4.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.0

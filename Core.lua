@@ -449,6 +449,10 @@ SlashCmdList["LOOTCHECK"] = function(msg)
             LC.Graph:Toggle()
         end
 
+    -- Deliberately absent from Help.COMMANDS: a diagnostic, not a feature
+    elseif cmd == "sizedebug" then
+        LC.Window:ToggleDebug()
+
     elseif cmd == "resetsize" then
         if LC.Window:ResetSize() then
             LC:Print("this page is back to its default size.")

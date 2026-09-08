@@ -18,7 +18,14 @@ assert(frame.grip, "there is a resize grip")
 -- Sizing must begin on a drag, not a click: on mouse-down a plain click put
 -- the frame into sizing mode and the client snapped it to its minimum
 assert(frame.grip._scripts.OnDragStart and frame.grip._scripts.OnDragStop, "the grip sizes on drag")
-assert(not frame.grip._scripts.OnMouseDown, "clicking the grip alone must not start sizing")
+
+local beforeW, beforeH = Window:ContentSize()
+if frame.grip._scripts.OnMouseDown then
+    frame.grip._scripts.OnMouseDown(frame.grip)
+end
+local afterW, afterH = Window:ContentSize()
+assert(afterW == beforeW and afterH == beforeH,
+    ("clicking the grip must not resize: %sx%s became %sx%s"):format(beforeW, beforeH, afterW, afterH))
 assert(frame._scripts.OnSizeChanged, "the window reacts to being resized")
 
 section("the floor is whatever the most demanding page needs")

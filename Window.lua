@@ -136,6 +136,82 @@ local function Clamp(w, h)
     return w, h
 end
 
+------------------------------------------------------------------------------
+-- Resize diagnostics (/lchelp sizedebug)
+------------------------------------------------------------------------------
+--
+-- Resizing is driven by the client, so when the window misbehaves there is
+-- nothing in the addon's own state to inspect afterwards. This prints what the
+-- frame and the client actually think at each step of a drag.
+
+Window.debug = false
+
+local function Num(value)
+    return type(value) == "number" and ("%.0f"):format(value) or "?"
+end
+
+--- One line of state, printed at each step of a drag while debugging is on
+function Window:Trace(label)
+    if not self.debug or not frame then return end
+
+    print(("|cff33ccffLootCheck|r [%s] tracked %sx%s | frame %sx%s | anchors %s"):format(
+        label, Num(width), Num(height),
+        Num(frame.GetWidth and frame:GetWidth()), Num(frame.GetHeight and frame:GetHeight()),
+        Num(frame.GetNumPoints and frame:GetNumPoints())))
+end
+
+--- Everything that does not change during a drag, printed once
+function Window:DumpSizeState()
+    if not frame then
+        LC:Print("open the window first, then run this again.")
+        return
+    end
+
+    local minW, minH = self:MinimumSize()
+    LC:Print("resize diagnostics:")
+    print(("  page            %s"):format(tostring(current)))
+    print(("  tracked size    %s x %s"):format(Num(width), Num(height)))
+    print(("  frame size      %s x %s"):format(
+        Num(frame.GetWidth and frame:GetWidth()), Num(frame.GetHeight and frame:GetHeight())))
+    print(("  minimum wanted  %s x %s"):format(Num(minW), Num(minH)))
+
+    if frame.GetResizeBounds then
+        local a, b, c, d = frame:GetResizeBounds()
+        print(("  client bounds   %s x %s .. %s x %s (GetResizeBounds)"):format(Num(a), Num(b), Num(c), Num(d)))
+    elseif frame.GetMinResize then
+        local a, b = frame:GetMinResize()
+        local c, d = frame.GetMaxResize and frame:GetMaxResize()
+        print(("  client bounds   %s x %s .. %s x %s (GetMinResize)"):format(Num(a), Num(b), Num(c), Num(d)))
+    else
+        print("  client bounds   neither GetResizeBounds nor GetMinResize exists")
+    end
+
+    print(("  setter used     %s"):format(
+        frame.SetResizeBounds and "SetResizeBounds" or (frame.SetMinResize and "SetMinResize" or "none available")))
+
+    local point, relTo, relPoint, x, y = frame:GetPoint()
+    print(("  anchored        %s of %s to %s at %s, %s (%s point(s))"):format(
+        tostring(point), tostring(relTo and relTo.GetName and relTo:GetName() or relTo), tostring(relPoint),
+        Num(x), Num(y), Num(frame.GetNumPoints and frame:GetNumPoints())))
+
+    print(("  scale           frame %s, effective %s, UIParent %s"):format(
+        tostring(frame.GetScale and frame:GetScale()),
+        tostring(frame.GetEffectiveScale and frame:GetEffectiveScale()),
+        tostring(UIParent.GetEffectiveScale and UIParent:GetEffectiveScale())))
+    print(("  UIParent        %s x %s"):format(
+        Num(UIParent.GetWidth and UIParent:GetWidth()), Num(UIParent.GetHeight and UIParent:GetHeight())))
+    print(("  resizable       %s"):format(tostring(frame.IsResizable and frame:IsResizable())))
+end
+
+function Window:ToggleDebug()
+    self.debug = not self.debug
+    LC:Print(self.debug
+        and "resize diagnostics on - drag the grip, then paste the lines here. |cff33ccff/lchelp sizedebug|r again turns it off."
+        or "resize diagnostics off.")
+    if self.debug then self:DumpSizeState() end
+    return self.debug
+end
+
 --- Tell the current page how much room it has, then let it refresh.
 local function ApplyLayout()
     local def = current and pages[current]
@@ -158,6 +234,29 @@ function Window:Resize(w, h)
     width, height = Clamp(w, h)
     frame:SetSize(width, height)
     ApplyLayout()
+end
+
+--- Pin the top-left corner before sizing from the bottom-right one.
+---
+--- A frame anchored by its centre keeps that centre fixed, so dragging the
+--- bottom-right corner moves the top-left corner the other way and the frame
+--- grows in *both* directions at twice the speed of the cursor. Re-anchoring
+--- to TOPLEFT first pins the corner that should stay still, which is the
+--- standard way to make a corner-resizable frame behave.
+local function AnchorTopLeft()
+    if not frame then return end
+
+    local left, top = frame:GetLeft(), frame:GetTop()
+    if not left or not top then return end
+
+    -- GetLeft/GetTop are in the frame's own coordinate space; UIParent may be
+    -- on a different one, so convert before anchoring across
+    local mine = (frame.GetEffectiveScale and frame:GetEffectiveScale()) or 1
+    local theirs = (UIParent.GetEffectiveScale and UIParent:GetEffectiveScale()) or 1
+    local ratio = (theirs ~= 0) and (mine / theirs) or 1
+
+    frame:ClearAllPoints()
+    frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left * ratio, top * ratio)
 end
 
 local function SavePosition()
@@ -236,18 +335,25 @@ local function Build()
     -- frame up to its minimum the moment sizing began if it happened to be
     -- smaller than that.
     grip:RegisterForDrag("LeftButton")
+    grip:SetScript("OnMouseDown", function() Window:Trace("grip mouse down") end)
     grip:SetScript("OnDragStart", function()
+        Window:Trace("drag start, before")
         Window:ApplyBounds()
+        AnchorTopLeft()
         f:StartSizing("BOTTOMRIGHT")
+        Window:Trace("drag start, after")
     end)
     grip:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
+        Window:Trace("drag stop, before")
+
         -- Trust the frame's own size after a drag, then clamp and store it
         local w = (f.GetWidth and f:GetWidth()) or width
         local h = (f.GetHeight and f:GetHeight()) or height
         Window:Resize(w, h)
         SaveSize()
         SavePosition() -- sizing from a corner moves the anchor too
+        Window:Trace("drag stop, after")
     end)
     f.grip = grip
 
@@ -256,6 +362,7 @@ local function Build()
         if not current then return end
         width = w or width
         height = h or height
+        Window:Trace("size changed")
         ApplyLayout()
     end)
 
