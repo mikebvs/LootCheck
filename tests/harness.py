@@ -13,7 +13,7 @@ HOME = os.path.expanduser("~")
 
 # Everything below can be pointed elsewhere with an environment variable, so
 # the suites run on any machine without editing this file.
-ADDON = os.environ.get("LOOTCHECK_ADDON") or os.path.join(os.path.dirname(HERE), "LootCheck")
+ADDON = os.environ.get("LOOTCHECK_ADDON") or os.path.dirname(HERE)
 
 WOW_ROOTS = [
     os.environ.get("LOOTCHECK_WOW"),

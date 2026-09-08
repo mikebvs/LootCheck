@@ -1,0 +1,25 @@
+# Packaging instructions for BigWigsMods/packager.
+#
+# The addon sits at the repository root, so the packager finds LootCheck.toc
+# on its own and reads the version, the Interface number and the CurseForge
+# project id from it. Everything listed under "ignore" is development-only and
+# is left out of the release zip.
+#
+# Libraries are committed under Libs/ rather than pulled in as externals, so
+# that the addon builds identically without reaching out to anything.
+
+package-as: LootCheck
+
+enable-nolib-creation: no
+
+ignore:
+    - tests
+    - tools
+    - .github
+    - .gitattributes
+    - .gitignore
+    - .pkgmeta
+    - dist
+    - shadow_resist.py
+    - srcheck_gui.pyw
+    - __pycache__
