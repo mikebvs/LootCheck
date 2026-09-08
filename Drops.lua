@@ -696,7 +696,9 @@ function Drops:BuildPanel(container)
 
     local rareLabel = LC.Window:Text(container, "GameFontHighlightSmall")
     rareLabel:SetPoint("LEFT", includeRare, "RIGHT", 2, 0)
+    rareLabel:SetPoint("RIGHT", container, "RIGHT", -2, 0)
     rareLabel:SetText("Include blue items")
+    container.rareLabel = rareLabel
 
     local inset = LC.Window:CreateInset(container, "LootCheckDropsInset")
     inset:SetPoint("TOPLEFT", includeRare, "BOTTOMLEFT", 4, -2)

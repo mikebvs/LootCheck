@@ -50,19 +50,8 @@ local function BuildPage(page)
     page.subtitle:SetPoint("TOPLEFT", MARGIN, -6)
     page.subtitle:SetJustifyH("CENTER")
 
-    local groupOnly = CreateFrame("CheckButton", "LootCheckGraphFrameGroupOnly", page, "UICheckButtonTemplate")
-    groupOnly:SetPoint("TOPLEFT", page.subtitle, "BOTTOMLEFT", -4, -6)
-    groupOnly:SetSize(24, 24)
-    groupOnly:SetScript("OnClick", function(self)
-        LC.db.settings.graphGroupOnly = self:GetChecked() and true or false
-        Graph:Refresh()
-    end)
-    local groupLabel = LC.Window:Text(page, "GameFontHighlight")
-    groupLabel:SetPoint("LEFT", groupOnly, "RIGHT", 4, 0)
-    groupLabel:SetText("Current group only")
-    page.groupOnly = groupOnly
-
-    -- Refresh sits at the right edge of the bar column, not of the page
+    -- Refresh sits at the right edge of the bar column, not of the page, and is
+    -- built first so the check box label can be bounded against it
     local refresh = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
     refresh:SetSize(80, 22)
     refresh:SetPoint("TOPRIGHT", page.subtitle, "BOTTOMRIGHT", -RIGHT_INSET, -7)
@@ -72,6 +61,20 @@ local function BuildPage(page)
         LC.Drops:Prune()
         Graph:Refresh()
     end)
+
+    local groupOnly = CreateFrame("CheckButton", "LootCheckGraphFrameGroupOnly", page, "UICheckButtonTemplate")
+    groupOnly:SetPoint("TOPLEFT", page.subtitle, "BOTTOMLEFT", -4, -6)
+    groupOnly:SetSize(24, 24)
+    groupOnly:SetScript("OnClick", function(self)
+        LC.db.settings.graphGroupOnly = self:GetChecked() and true or false
+        Graph:Refresh()
+    end)
+    local groupLabel = LC.Window:Text(page, "GameFontHighlight")
+    groupLabel:SetPoint("LEFT", groupOnly, "RIGHT", 4, 0)
+    groupLabel:SetPoint("RIGHT", refresh, "LEFT", -6, 0)
+    groupLabel:SetText("Current group only")
+    page.groupOnly = groupOnly
+    page.groupLabel = groupLabel
 
     -- Phase filter. A taint-free stepper rather than a dropdown, like the
     -- raid drops week picker; see the note in Imports.lua about UIDropDownMenu.
@@ -96,9 +99,12 @@ local function BuildPage(page)
     local header = LC.Window:Text(page, "GameFontDisableSmall")
     header:SetPoint("TOPLEFT", prevPhase, "BOTTOMLEFT", 0, -6)
     header:SetText("Raider")
+    -- Bounded by the bar column's right edge: unbounded, this ran on into the
+    -- raid drops list next to it
     local header2 = LC.Window:Text(page, "GameFontDisableSmall")
     header2:SetPoint("LEFT", header, "LEFT", NAME_WIDTH + 8, 0)
-    header2:SetText("Wishlist items awarded: current wishlist (all time)")
+    header2:SetPoint("RIGHT", page, "LEFT", MARGIN + LEFT_WIDTH, 0)
+    header2:SetText("Awarded: current wishlist (all time)")
     page.header2 = header2
 
     -- The list sits on a dark inset so it reads as a panel of its own
@@ -223,8 +229,8 @@ function Graph:Refresh()
         db and (db.source .. ": ") or "", #list, total, window, allTime))
 
     frame.header2:SetText(phase
-        and ("Wishlist items awarded: %s (all time)"):format(phase.key)
-        or "Wishlist items awarded: current wishlist (all time)")
+        and ("Awarded: %s (all time)"):format(phase.key)
+        or "Awarded: current wishlist (all time)")
 
     for i, r in ipairs(list) do
         local row = GetRow(i)

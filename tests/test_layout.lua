@@ -44,6 +44,13 @@ LootCheck.Graph:Open()
 assert(LootCheckGraphFrame.subtitle._width, "graph subtitle has no wrap width")
 assert(LootCheck.Graph._rows[1].name._wordWrap == false, "graph names must not wrap (fixed row height)")
 
+-- The graph page is two columns: anything in the left one that is not bounded
+-- on the right runs on into the raid drops list beside it, which it did
+bounded(LootCheckGraphFrame.header2, "graph: awarded column heading")
+bounded(LootCheckGraphFrame.groupLabel, "graph: group check box label")
+bounded(LootCheckGraphFrame.phaseLabel, "graph: phase label")
+bounded(LootCheckGraphFrameDrops.rareLabel, "drops: blue items label")
+
 -- The drops column: the date needs room for "Tue 09:41", and the week label
 -- must stop before the counts rather than running underneath them
 local dropsPanel = LootCheckGraphFrameDrops
@@ -56,6 +63,7 @@ assert(LootCheck.Drops._rows[1].looted._width and LootCheck.Drops._rows[1].statu
 
 LootCheck.Audit:Open()
 assert(LootCheck.Audit._rows[1].text._wordWrap == false, "audit rows must not wrap (fixed row height)")
+bounded(LootCheckAuditFrame.wishlistOnlyLabel, "audit: hide-non-wishlist label")
 assert(LootCheck.Audit._rows[1].time._width, "audit time column has no width")
 
 section("list and text areas sit on a dark inset")

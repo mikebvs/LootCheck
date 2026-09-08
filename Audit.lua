@@ -203,15 +203,18 @@ local function BuildPage(page)
         Settings().auditWishlistOnly = self:GetChecked() and true or false
         Audit:Refresh()
     end)
-    local label = LC.Window:Text(page, "GameFontHighlight")
-    label:SetPoint("LEFT", box, "RIGHT", 4, 0)
-    label:SetText("Hide awards that were not on the winner's wishlist")
-    page.wishlistOnly = box
-
     page.count = LC.Window:Text(page, "GameFontHighlightSmall")
     page.count:SetPoint("RIGHT", page, "RIGHT", -MARGIN - 4, 0)
     page.count:SetPoint("TOP", box, "TOP", 0, -6)
     page.count:SetJustifyH("RIGHT")
+
+    -- Bounded against the count so a longer label cannot overrun it
+    local label = LC.Window:Text(page, "GameFontHighlight")
+    label:SetPoint("LEFT", box, "RIGHT", 4, 0)
+    label:SetPoint("RIGHT", page.count, "LEFT", -8, 0)
+    label:SetText("Hide awards that were not on the winner's wishlist")
+    page.wishlistOnly = box
+    page.wishlistOnlyLabel = label
 
     -- The list sits on a dark inset so it reads as a panel of its own
     local list = LC.Window:CreateInset(page, "LootCheckAuditFrameInset")

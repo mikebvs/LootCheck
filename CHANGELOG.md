@@ -3,6 +3,18 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.1] - 2026-09-08
+
+### Fixed
+
+- The graph's "Wishlist items awarded" column heading had no right bound, so it
+  ran on into the raid drops list beside it. It is now bounded by the bar
+  column and shortened to "Awarded: current wishlist (all time)".
+- Bounded three more single-line labels that sat at the end of a row and could
+  overrun their neighbour the same way: the graph's group check box, the audit
+  page's hide-non-wishlist label, and the drops list's blue items label. The
+  layout suite now asserts all of them.
+
 ## [1.2.0] - 2026-09-08
 
 ### Added
@@ -94,6 +106,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.2.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.2.1
 [1.2.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.2.0
 [1.1.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.1.0
 [1.0.2]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.2
