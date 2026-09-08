@@ -75,7 +75,7 @@ assert(notReceivedPair and receivedPair, "no suitable pairs in the data")
 print(("not-received pair: %s / %s"):format(notReceivedPair.display, notReceivedPair.item))
 print(("received pair:     %s / %s"):format(receivedPair.display, receivedPair.item))
 
-section("giveitem: manual received mark greys the tooltip and counts (this phase + all time)")
+section("giveitem: manual received mark greys the tooltip and counts (current wishlist + all time)")
 local P = notReceivedPair
 assert(not isGrey(lineFor(P.id, P.display)), "should not be grey before")
 local before = rowFor(P.who)

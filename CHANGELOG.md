@@ -3,6 +3,28 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-09-08
+
+### Added
+
+- **Content phase dates** and a phase filter on the graph. The `< >` buttons
+  limit the bars to awards from one phase, which is a real date window. P1, P2
+  and P3 carry their announced Anniversary dates; P4 (Zul'Aman) and P5 (Sunwell)
+  have none yet and show no awards until you set one with
+  `/lchelp phase P4 2026-10-15`. Your dates are remembered, so no addon update
+  is needed when Blizzard announces them.
+- `/lchelp phase` lists the table and marks the phase you are in.
+
+### Changed
+
+- The graph's main number is now labelled **current wishlist** rather than
+  "this phase". Its behaviour is unchanged: it has always counted awards
+  against the wishlist you have imported, never a date range, and the old label
+  implied otherwise. The same wording is corrected on the home page, in
+  `/lchelp status` and in `/lchelp wishlist`.
+- A chosen phase takes precedence over the "last N days" filter, rather than
+  the two intersecting.
+
 ## [1.1.0] - 2026-09-08
 
 ### Added
@@ -72,6 +94,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.2.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.2.0
 [1.1.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.1.0
 [1.0.2]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.2
 [1.0.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.1

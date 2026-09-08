@@ -30,7 +30,7 @@ end
 bounded(home.greyOS.label, "home: OS check box label")
 bounded(home.groupOnly.label, "home: group check box label")
 bounded(home.tmbTooltip.label, "home: TMB check box label")
-bounded(home.daysTail, "home: \"days (0 = whole phase)\"")
+bounded(home.daysTail, "home: \"days (0 = no limit)\"")
 bounded(home.suffixTail, "home: greyed-name suffix example")
 
 LootCheck.Imports:Open()

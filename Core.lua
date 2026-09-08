@@ -45,6 +45,7 @@ local DEFAULTS = {
         receivedSuffix = "",    -- tooltip: text appended after a greyed name, e.g. " (received)"
         graphGroupOnly = false, -- graph: only show raiders currently in your group
         graphDays      = 0,     -- graph: only count awards from the last N days (0 = all time)
+        graphPhase     = "",    -- graph: "" = all time, else a Phases key like "P3"
         auditWishlistOnly = false, -- audit page: hide awards that were not on the winner's wishlist
         shareEdits     = false, -- pass giveitem/removeitem/addwlitem/removewlitem on to your share list
         dropsIncludeRare = false, -- raid drops list: show blue items as well as epics
@@ -58,6 +59,7 @@ local DEFAULTS = {
     ignoredAwards = {},        -- /lchelp removeitem: Gargul awards LootCheck should ignore (see Awards.lua)
     auditLog = {},             -- manual-edit commands, shown on the Audit page (see Audit.lua)
     drops = {},                -- items that dropped in the raid, per raid week (see Drops.lua)
+    phaseDates = {},           -- phase key -> date you set by hand (see Phases.lua)
 }
 
 ------------------------------------------------------------------------------
@@ -322,7 +324,7 @@ function LC:PrintStatus()
         end
         local logged = 0
         for _ in pairs(self.db.history or {}) do logged = logged + 1 end
-        print(("  Non-OS wishlist items awarded: %d this phase, %d all time"):format(current, allTime))
+        print(("  Non-OS wishlist items awarded: %d against the current wishlist, %d all time"):format(current, allTime))
         print(("  History log: %d matches remembered by LootCheck (the rest of all-time comes from Gargul's WL stamps)"):format(logged))
     end
 
@@ -443,6 +445,16 @@ SlashCmdList["LOOTCHECK"] = function(msg)
             LC.Graph:Open()
         else
             LC.Graph:Toggle()
+        end
+
+    elseif cmd == "phase" or cmd == "phases" then
+        local key, date = rest:match("^(%S+)%s*(.-)$")
+        if not key or key == "" then
+            LC.Phases:Print()
+        else
+            local ok, message = LC.Phases:Set(key:upper(), date ~= "" and date or nil)
+            LC:Print(message)
+            if ok and LC.Graph then LC.Graph:RefreshIfShown() end
         end
 
     elseif cmd == "council" or cmd == "members" then

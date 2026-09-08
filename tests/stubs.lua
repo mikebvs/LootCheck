@@ -26,6 +26,7 @@ strlower = string.lower
 date = os.date
 GetTime = os.clock
 GetServerTime = os.time
+time = os.time -- WoW has this as a global; os is not available in the addon sandbox
 UISpecialFrames = {}
 SlashCmdList = {}
 BackdropTemplateMixin = {}

@@ -39,7 +39,7 @@ print("status 2:", f.status[2]:GetText())
 print("status 3:", f.status[3]:GetText())
 assert(f.status[1]:GetText():find("Gargul: |cff00ff00found", 1, true), "Gargul status")
 assert(f.status[2]:GetText():find("Active raid: |cffffffffTMBExport", 1, true), "source status")
-assert(f.status[3]:GetText():match("Wishlist items awarded: %d+ this phase, %d+ all time"), "totals status")
+assert(f.status[3]:GetText():match("Wishlist items awarded: %d+ against the current wishlist, %d+ all time"), "totals status")
 
 section("check boxes reflect and change settings")
 assert(f.greyOS:GetChecked() == true, "greyOS starts on")

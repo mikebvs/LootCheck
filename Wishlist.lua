@@ -562,7 +562,7 @@ function Wishlist:PrintWishlist(args)
     LC:Print(("%s's wishlist (%d entries):"):format(display, #rows))
     for _, r in ipairs(LC.Data:WishlistAwardCounts({})) do
         if r.normName == norm then
-            print(("  wishlist items received: %d this phase, %d all time"):format(r.count, r.history or 0))
+            print(("  wishlist items received: %d against the current wishlist, %d all time"):format(r.count, r.history or 0))
             break
         end
     end

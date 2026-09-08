@@ -133,7 +133,7 @@ local function BuildPage(page)
     local daysTail = LC.Window:Text(page, "GameFontHighlight")
     daysTail:SetPoint("LEFT", page.days, "RIGHT", 8, 0)
     daysTail:SetPoint("RIGHT", page, "RIGHT", -MARGIN, 0)
-    daysTail:SetText("days (0 = whole phase)")
+    daysTail:SetText("days (0 = no limit)")
     page.daysTail = daysTail
 
     local suffixLabel = LC.Window:Text(page, "GameFontHighlight")
@@ -203,7 +203,7 @@ function Config:Refresh()
             current = current + row.count
             allTime = allTime + row.history
         end
-        frame.status[3]:SetText(("Wishlist items awarded: %d this phase, %d all time"):format(current, allTime))
+        frame.status[3]:SetText(("Wishlist items awarded: %d against the current wishlist, %d all time"):format(current, allTime))
     else
         frame.status[3]:SetText("")
     end

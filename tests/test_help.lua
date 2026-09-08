@@ -67,7 +67,7 @@ end
 assert(LootCheck.db.settings.greyOSAwards == true and LootCheck.db.settings.graphGroupOnly == false, "toggles restored")
 assert(LootCheck.db.settings.shareEdits == false, "edit sharing left off")
 assert(TMBExportDB.settings.showTooltip == false, "TMBExport tooltip restored")
-for _, keyword in ipairs({ "graph", "drops", "council", "members", "grouponly", "audit", "imports", "data", "use", "giveitem", "removeitem", "addwlitem",
+for _, keyword in ipairs({ "graph", "drops", "council", "members", "phase", "phases", "grouponly", "audit", "imports", "data", "use", "giveitem", "removeitem", "addwlitem",
                            "removewlitem", "wishlist", "check", "overrides", "status", "greyos", "tmbtooltip", "help", "config" }) do
     assert(documented[keyword], "handled but undocumented: " .. keyword)
 end

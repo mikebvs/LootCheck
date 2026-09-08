@@ -31,6 +31,7 @@ LootCheck never writes to Gargul's data. The only thing it touches in TMBExport 
 | `/lchelp grouponly` | Toggle showing only raiders currently in your group |
 | `/lchelp drops` | Open the graph page and its raid drops list (`/lchelp drops clear` forgets them) |
 | `/lchelp council` | Loot Council page: who is running LootCheck and on what version (`members` does the same) |
+| `/lchelp phase` | Show the content phase dates, or set one (`/lchelp phase P4 2026-10-15`) |
 | `/lchelp check <item link>` | Print wishlist + award data for one item (shift-click the item into chat) |
 | `/lchelp status` | Show what data LootCheck can see and whether the tooltip integration is active |
 | `/lchelp greyos` | Toggle whether names awarded via an **OS** roll are also greyed on tooltips (default: on) |
@@ -134,9 +135,35 @@ The right-hand column of the graph page lists every item that dropped in the rai
 - **Who got it.** Each drop is matched with the Gargul award (or manual received mark) of that item that followed it, so two of the same item in a week line up with the two awards that followed. Where nothing has been awarded yet, the column instead shows how many raiders have it on their wishlist.
 - **Hovering a drop** shows the item's own tooltip, wishlist section included, so the greyed-out names are right there. Shift-click links it into chat.
 
+## Phases, and what "this phase" used to mean
+
+The graph's main number counts awards **against the wishlist you currently have imported**. It has never involved a date: it changes when you re-import a new tier's data, which is exactly why the total drops when a new phase's wishlists land. The column is labelled *current wishlist* for that reason.
+
+Separately, the `< >` buttons filter by **content phase**, which is a real date window:
+
+| Phase | Content | Date |
+|---|---|---|
+| P1 | Karazhan, Gruul, Magtheridon | 2026-02-05 |
+| P2 | Serpentshrine Cavern, Tempest Keep | 2026-05-14 |
+| P3 | Black Temple, Mount Hyjal | 2026-08-27 |
+| P4 | Zul'Aman | not announced |
+| P5 | Sunwell Plateau | not announced |
+
+- A phase runs from its own date until the next **announced** one, so the newest phase has no end.
+- A phase with no date shows **no** awards, rather than falling back to everything.
+- A chosen phase takes over from the `days` filter, so the two cannot silently intersect.
+- Blizzard's roadmap numbers Zul'Aman as phase 3.5 and Sunwell as phase 4; the guild convention of P4 and P5 is used here.
+
+Set a date yourself when one is announced, and it is remembered — no addon update needed:
+
+```
+/lchelp phase P4 2026-10-15
+/lchelp phase P4 reset
+```
+
 ## How the graph counts
 
-Each bar shows **this phase**: Gargul awards that match the raider's *current* TMBExport wishlist. The number in parentheses is **all time**: every wishlisted item they have ever received, across phases. `4 (22)` = 4 this phase, 22 overall. Hover a bar for both lists.
+Each bar shows the **current wishlist** count: Gargul awards that match the raider's *current* wishlist data. Despite the old wording, this was never a date range. The number in parentheses is **all time**: every wishlisted item they have ever received, across phases. `4 (22)` = 4 this phase, 22 overall. Hover a bar for both lists.
 
 An award matches the current wishlist when **all** of these are true:
 

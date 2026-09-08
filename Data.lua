@@ -331,7 +331,10 @@ end
 ---   * the award itself was not flagged OS by Gargul (i.e. not just an OS roll win)
 --- capped at the number of non-OS wishlist entries they have for that item
 --- (so a dual-wield double wishlist can count twice, but a single wish can't).
-local function ComputeMatches(self, cutoff)
+--- `from` and `to` bound the award timestamps considered; `to` of nil means
+--- "up to now". A phase is a window, where the old day-count filter was only
+--- ever a floor.
+local function ComputeMatches(self, from, to)
     local matches = {}
 
     for itemID, players in pairs(self:WishlistIndex()) do
@@ -343,7 +346,7 @@ local function ComputeMatches(self, cutoff)
                     local matched = 0
                     for _, a in ipairs(list) do
                         if matched >= p.mainSpec then break end
-                        if not a.OS and a.timestamp >= cutoff then
+                        if not a.OS and a.timestamp >= from and (not to or a.timestamp < to) then
                             matched = matched + 1
                             matches[norm] = matches[norm] or {}
                             tinsert(matches[norm], {
@@ -477,14 +480,22 @@ end
 --- sorted by count (desc), then history (desc), then name.
 function Data:WishlistAwardCounts(opts)
     opts = opts or {}
-    local days = tonumber(opts.days) or 0
-    local cutoff = days > 0 and (GetServerTime() - days * 86400) or 0
     local group = opts.groupOnly and self:GroupMembers() or nil
 
-    -- Every match against the current wishlist is logged, whatever the display window
-    local allMatches = ComputeMatches(self, 0)
+    -- A phase window wins over the rolling day count: applying both at once
+    -- would silently intersect two filters the user set in different places
+    local from, to = tonumber(opts.from), tonumber(opts.to)
+    if not from then
+        local days = tonumber(opts.days) or 0
+        from = days > 0 and (GetServerTime() - days * 86400) or 0
+    end
+
+    -- Every match against the current wishlist is logged, whatever the display
+    -- window, so the all-time history keeps filling in either way
+    local allMatches = ComputeMatches(self, 0, nil)
     self:RecordMatches(allMatches)
-    local matches = cutoff > 0 and ComputeMatches(self, cutoff) or allMatches
+    local windowed = (from and from > 0) or to
+    local matches = windowed and ComputeMatches(self, from or 0, to) or allMatches
     local history = self:History()
 
     local list = {}

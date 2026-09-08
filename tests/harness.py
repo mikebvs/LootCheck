@@ -134,7 +134,7 @@ run(os.path.join(ADDON, "Libs", "LibStub", "LibStub.lua"))
 run(os.path.join(ADDON, "Libs", "LibDeflate", "LibDeflate.lua"))
 run(os.path.join(ADDON, "Libs", "LibDeformat-3.0", "LibDeformat-3.0.lua"))
 run(os.path.join(HERE, "fake_acecomm.lua"))
-for name in ("Core.lua", "Data.lua", "TierTokens.lua", "Tooltip.lua", "Window.lua", "Drops.lua", "Graph.lua", "Wishlist.lua", "Awards.lua", "Imports.lua", "Comm.lua", "Help.lua", "Audit.lua", "Council.lua", "Config.lua"):
+for name in ("Core.lua", "Data.lua", "Phases.lua", "TierTokens.lua", "Tooltip.lua", "Window.lua", "Drops.lua", "Graph.lua", "Wishlist.lua", "Awards.lua", "Imports.lua", "Comm.lua", "Help.lua", "Audit.lua", "Council.lua", "Config.lua"):
     run(os.path.join(ADDON, name), "LootCheck", "")
 if not SV:
     sys.exit(
@@ -157,4 +157,5 @@ run(os.path.join(HERE, "test_comm.lua"))
 run(os.path.join(HERE, "test_share.lua"))
 run(os.path.join(HERE, "test_drops.lua"))
 run(os.path.join(HERE, "test_council.lua"))
+run(os.path.join(HERE, "test_phases.lua"))
 print("harness finished OK", flush=True)

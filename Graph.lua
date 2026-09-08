@@ -4,8 +4,13 @@
     The "Wishlist Awards" page, in two columns.
 
     Left: one horizontal bar per raider showing how many non-OS wishlist items
-    Gargul has awarded them this phase, with the all-time number in
-    parentheses. Hovering a row lists the items.
+    Gargul has awarded them, with the all-time number in parentheses. Hovering
+    a row lists the items.
+
+    By default the bars count against the wishlist currently imported, which is
+    what changes when you re-import a new tier's data. The < > buttons filter by
+    content phase instead, which is a date window (see Phases.lua); the two are
+    different questions and a chosen phase takes over from the day count.
 
     Right: everything that dropped in the raid this week (see Drops.lua),
     which owns that column and only gets a container frame from here.
@@ -68,12 +73,33 @@ local function BuildPage(page)
         Graph:Refresh()
     end)
 
+    -- Phase filter. A taint-free stepper rather than a dropdown, like the
+    -- raid drops week picker; see the note in Imports.lua about UIDropDownMenu.
+    local prevPhase = CreateFrame("Button", "LootCheckGraphFramePrevPhase", page, "UIPanelButtonTemplate")
+    prevPhase:SetSize(22, 20)
+    prevPhase:SetPoint("TOPLEFT", groupOnly, "BOTTOMLEFT", 4, -4)
+    prevPhase:SetText("<")
+    prevPhase:SetScript("OnClick", function() Graph:StepPhase(-1) end)
+    page.prevPhase = prevPhase
+
+    local nextPhase = CreateFrame("Button", "LootCheckGraphFrameNextPhase", page, "UIPanelButtonTemplate")
+    nextPhase:SetSize(22, 20)
+    nextPhase:SetPoint("LEFT", prevPhase, "RIGHT", 2, 0)
+    nextPhase:SetText(">")
+    nextPhase:SetScript("OnClick", function() Graph:StepPhase(1) end)
+    page.nextPhase = nextPhase
+
+    page.phaseLabel = LC.Window:Text(page, "GameFontNormalSmall")
+    page.phaseLabel:SetPoint("LEFT", nextPhase, "RIGHT", 6, 0)
+    page.phaseLabel:SetPoint("RIGHT", page, "LEFT", MARGIN + LEFT_WIDTH, 0)
+
     local header = LC.Window:Text(page, "GameFontDisableSmall")
-    header:SetPoint("TOPLEFT", groupOnly, "BOTTOMLEFT", 4, -6)
+    header:SetPoint("TOPLEFT", prevPhase, "BOTTOMLEFT", 0, -6)
     header:SetText("Raider")
     local header2 = LC.Window:Text(page, "GameFontDisableSmall")
     header2:SetPoint("LEFT", header, "LEFT", NAME_WIDTH + 8, 0)
-    header2:SetText("Wishlist items awarded: this phase (all time)")
+    header2:SetText("Wishlist items awarded: current wishlist (all time)")
+    page.header2 = header2
 
     -- The list sits on a dark inset so it reads as a panel of its own
     local inset = LC.Window:CreateInset(page, "LootCheckGraphFrameInset")
@@ -151,10 +177,29 @@ function Graph:Refresh()
     local GL = LC:Gargul()
     local db = LC:WishlistData()
 
+    -- A chosen phase is a date window and takes over from the rolling day count
+    local phaseKey = settings.graphPhase
+    local phase = (phaseKey and phaseKey ~= "") and LC.Phases:Get(phaseKey) or nil
+    local from, to
+    if phase then
+        from, to = LC.Phases:Bounds(phase.key)
+        -- A phase with no announced date has not happened, so nothing counts.
+        -- Without this the window would be empty and fall back to "all time",
+        -- which would show every award under a phase that has not started.
+        if not from then from = math.huge end
+    end
+
+    frame.phaseLabel:SetText(phase
+        and ("Phase: |cffffffff%s|r%s"):format(LC.Phases:Label(phase.key),
+            phase.announced and "" or " |cffff4040(no date yet)|r")
+        or "Phase: |cffffffffAll time|r")
+
     local list = {}
     if GL and db then
         list = LC.Data:WishlistAwardCounts({
             days = settings.graphDays,
+            from = from,
+            to = to,
             groupOnly = settings.graphGroupOnly,
         })
     end
@@ -166,11 +211,20 @@ function Graph:Refresh()
         if r.count > maxCount then maxCount = r.count end
     end
 
-    local window = (settings.graphDays or 0) > 0
-        and ("in the last " .. settings.graphDays .. " days")
-        or "this phase"
+    local window
+    if phase then
+        window = phase.announced and ("during " .. phase.key) or ("in " .. phase.key .. ", which has no date yet")
+    elseif (settings.graphDays or 0) > 0 then
+        window = "in the last " .. settings.graphDays .. " days"
+    else
+        window = "against the current wishlist"
+    end
     frame.subtitle:SetText(("%s%d raiders - %d wishlist items awarded %s, %d all time"):format(
         db and (db.source .. ": ") or "", #list, total, window, allTime))
+
+    frame.header2:SetText(phase
+        and ("Wishlist items awarded: %s (all time)"):format(phase.key)
+        or "Wishlist items awarded: current wishlist (all time)")
 
     for i, r in ipairs(list) do
         local row = GetRow(i)
@@ -218,6 +272,24 @@ function Graph:Refresh()
     LC.Drops:RefreshPanel()
 end
 
+--- Cycle the phase filter: all time, then P1 upwards.
+function Graph:StepPhase(by)
+    local keys = LC.Phases:StepperKeys()
+    local current = LC.db.settings.graphPhase or ""
+
+    local index = 1
+    for i, key in ipairs(keys) do
+        if key == current then index = i break end
+    end
+
+    index = index + (by or 0)
+    if index < 1 then index = #keys end
+    if index > #keys then index = 1 end
+
+    LC.db.settings.graphPhase = keys[index]
+    self:Refresh()
+end
+
 function Graph:ShowRowTooltip(row)
     local r = row.data
     if not r then return end
@@ -226,9 +298,9 @@ function Graph:ShowRowTooltip(row)
     GameTooltip:AddLine(r.displayName, LC:ClassColor(r.class))
 
     if r.count == 0 then
-        GameTooltip:AddLine("No wishlist items awarded this phase.", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine("No wishlist items awarded in this window.", 0.7, 0.7, 0.7)
     else
-        GameTooltip:AddLine(("%d wishlist item%s awarded this phase:"):format(r.count, r.count == 1 and "" or "s"), 1, 1, 1)
+        GameTooltip:AddLine(("%d wishlist item%s awarded in this window:"):format(r.count, r.count == 1 and "" or "s"), 1, 1, 1)
         for _, item in ipairs(r.items) do
             local label = item.itemLink or item.itemName or "?"
             if item.prio then
@@ -239,7 +311,7 @@ function Graph:ShowRowTooltip(row)
         end
     end
 
-    -- Everything else they ever received off a wishlist (earlier phases)
+    -- Everything else they ever received off a wishlist, outside this window
     local current = {}
     for _, item in ipairs(r.items) do
         if item.checksum then current[item.checksum] = true end
@@ -250,7 +322,7 @@ function Graph:ShowRowTooltip(row)
     end
     if #earlier > 0 then
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(("%d more from earlier phases (%d all time):"):format(#earlier, r.history or 0), 1, 1, 1)
+        GameTooltip:AddLine(("%d more outside this window (%d all time):"):format(#earlier, r.history or 0), 1, 1, 1)
         for i, item in ipairs(earlier) do
             if i > 25 then
                 GameTooltip:AddLine(("... and %d more"):format(#earlier - 25), 0.6, 0.6, 0.6)

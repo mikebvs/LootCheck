@@ -88,7 +88,7 @@ local n = 0
 for _ in pairs(LootCheckDB.history) do n = n + 1 end
 assert(n == current, "award event should re-log current matches")
 
-section("graph shows 'N (M)', subtitle mentions all time, row tooltip lists earlier phases")
+section("graph shows 'N (M)', subtitle mentions all time, row tooltip lists the rest")
 LootCheck.Graph:Open()
 local first = LootCheck.Graph._rows[1]
 assert(first and first.count:GetText():match("^%d+ |cffaaaaaa%(%d+%)|r$"), "count text: " .. tostring(first and first.count:GetText()))
@@ -100,7 +100,7 @@ local tip = {}
 for i = 1, GameTooltip:NumLines() do tip[i] = _G["GameTooltipTextLeft" .. i]:GetText() end
 print("row tooltip:\n   " .. table.concat(tip, "\n   "))
 if first.data.history > first.data.count then
-    assert(table.concat(tip, "\n"):find("from earlier phases", 1, true), "earlier phases section expected")
+    assert(table.concat(tip, "\n"):find("outside this window", 1, true), "the out-of-window section is expected")
 end
 LootCheck.Window:Hide()
 
@@ -117,7 +117,7 @@ SlashCmdList.LOOTCHECK("wishlist " .. rows[1].displayName)
 SlashCmdList.LOOTCHECK("status")
 print = realPrint
 local text = table.concat(captured, "\n")
-assert(text:find("wishlist items received: %d+ this phase, %d+ all time"), text)
-assert(text:find("Non%-OS wishlist items awarded: %d+ this phase, %d+ all time"), text)
+assert(text:find("wishlist items received: %d+ against the current wishlist, %d+ all time"), text)
+assert(text:find("Non%-OS wishlist items awarded: %d+ against the current wishlist, %d+ all time"), text)
 
 print("\nHISTORY TESTS PASSED")
