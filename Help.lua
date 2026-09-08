@@ -29,7 +29,7 @@ Help.COMMANDS = {
     { cmd = "/lchelp graph", args = "[days]", aliases = { "/lchg" },
       desc = "Open the wishlist award graph. The bars count awards that match the wishlist you currently have imported. The < > buttons filter by content phase instead (see /lchelp phase), and a number limits the bars to awards from the last that many days (0 = no limit). Both are remembered." },
     { cmd = "/lchelp resetsize",
-      desc = "Put the page you are on back to the size it was designed at. The window is resizable by the grip in its bottom-right corner and each page remembers its own size, so this only affects the page currently open." },
+      desc = "Forget the size you dragged the window to and go back to the current page's natural size. The window is resizable by the grip in its bottom-right corner, and there is one size for the whole window: drag it on any page and every other page opens at that size. It cannot go below what the wishlist graph needs for its two columns." },
     { cmd = "/lchelp phase", args = "[P4] [YYYY-MM-DD | reset]", aliases = { "/lchelp phases" },
       desc = "Show the content phase dates, or set one. Dates only drive the graph's phase filter (the < > buttons); they have nothing to do with the \"current wishlist\" number, which counts against the wishlist you have imported and changes when you re-import. P4 (Zul'Aman) and P5 (Sunwell) have no announced date yet, so set them yourself when Blizzard says: \"/lchelp phase P4 2026-10-15\". Your dates are remembered, and \"reset\" restores the default." },
     { cmd = "/lchelp council", aliases = { "/lchc", "/lchelp members" },

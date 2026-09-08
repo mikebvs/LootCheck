@@ -1,4 +1,5 @@
--- Resizing: the grip, the per-page remembered size, and the pages reflowing.
+-- Resizing: the grip, the one shared size carried between pages, and the
+-- pages reflowing to fit it.
 local function section(t) print("\n=== " .. t .. " ===") end
 local Window = LootCheck.Window
 
@@ -17,12 +18,19 @@ assert(frame.grip, "there is a resize grip")
 assert(frame.grip._scripts.OnMouseDown and frame.grip._scripts.OnMouseUp, "the grip drives sizing")
 assert(frame._scripts.OnSizeChanged, "the window reacts to being resized")
 
-section("a page opens at its natural size, and remembers what you leave it at")
+section("the floor is whatever the most demanding page needs")
+-- The graph has to fit two columns, so its minimum is the window's minimum,
+-- which is what lets one size suit every page
+local minW, minH = Window:MinimumSize()
+assert(minW >= 320 + 360 + 22 * 2 + 14, "the floor covers the graph's two columns, got " .. minW)
+assert(minH >= 360, "and its height, got " .. minH)
+
 LootCheckDB.windowSize = {}
 Window:Show("audit")
-local w, h = Window:ContentSize()
-assert(w == 680, "audit opens at its natural width, got " .. w)
+local w = select(1, Window:ContentSize())
+assert(w >= minW, "even a narrow page opens at least at the floor, got " .. w)
 
+section("the size you drag to carries to every other page")
 Window:Resize(900, 700)
 local newW, newH = Window:ContentSize()
 assert(newW == 900, "resized width, got " .. newW)
@@ -30,18 +38,29 @@ assert(newH == 700 - 44, "content height is the window minus the title bar, got 
 
 -- The grip stores it on release
 frame.grip._scripts.OnMouseUp(frame.grip)
-assert(LootCheckDB.windowSize.audit, "the size was stored")
-assert(LootCheckDB.windowSize.audit.width == 900, "stored width")
+assert(LootCheckDB.windowSize.width == 900, "one shared size was stored, not one per page")
 
 Window:Hide()
 Window:Show("audit")
 assert(select(1, Window:ContentSize()) == 900, "it opens at the size you left it")
 
-section("each page keeps its own size")
+for _, key in ipairs({ "home", "graph", "council", "help", "imports" }) do
+    Window:Show(key)
+    local pageW, pageH = Window:ContentSize()
+    assert(pageW == 900, key .. " inherited the dragged width, got " .. pageW)
+    assert(pageH == 700 - 44, key .. " inherited the dragged height, got " .. pageH)
+end
+
+section("a size stored per page before the change is carried over, not lost")
+LootCheckDB.windowSize = {
+    audit = { width = 820, height = 640 },
+    graph = { width = 1100, height = 700 },
+}
+Window:Hide()
 Window:Show("home")
-assert(select(1, Window:ContentSize()) == 600, "home is unaffected by the audit page's size")
-Window:Show("audit")
-assert(select(1, Window:ContentSize()) == 900, "and audit still has its own")
+assert(select(1, Window:ContentSize()) == 1100, "the largest old size became the shared one")
+assert(LootCheckDB.windowSize.width == 1100, "and was rewritten in the new shape")
+assert(LootCheckDB.windowSize.audit == nil, "the per-page entries are gone")
 
 section("sizes are clamped, so a saved one cannot outgrow the screen")
 UIParent:SetSize(1200, 800)
@@ -52,9 +71,10 @@ assert(clampedW <= 1200, "width clamped to the screen, got " .. clampedW)
 assert(clampedH + 44 <= 800, "height clamped to the screen, got " .. (clampedH + 44))
 
 Window:Resize(10, 10)
-local minW, minH = Window:ContentSize()
-assert(minW >= 420, "a minimum width is enforced, got " .. minW)
-assert(minH + 44 >= 280, "and a minimum height, got " .. (minH + 44))
+local floorW, floorH = Window:ContentSize()
+local wantW, wantH = Window:MinimumSize()
+assert(floorW >= math.min(wantW, 1200), "the floor is enforced, got " .. floorW)
+assert(floorH + 44 >= math.min(wantH, 800), "and its height, got " .. (floorH + 44))
 UIParent:SetSize(nil, nil)
 
 section("a taller window shows more rows, a shorter one fewer")
@@ -100,16 +120,20 @@ local content = LootCheckHelpFrame.content
 Window:Resize(900, 600)
 assert(content._width == 900 - 22 * 2 - 40, "the commands page widens its content, got " .. tostring(content._width))
 local wideHeight = content._height
-Window:Resize(520, 600)
-assert(content._width == 520 - 22 * 2 - 40, "and narrows it again")
+Window:Resize(Window:MinimumSize(), 600) -- anything narrower is clamped to the floor
+local narrowW = select(1, Window:ContentSize())
+assert(narrowW < 900, "the window did get narrower, got " .. narrowW)
+assert(content._width == narrowW - 22 * 2 - 40, "and the content narrowed with it, got " .. tostring(content._width))
 assert(content._height >= wideHeight, "a narrower page wraps onto more lines, so it gets taller")
 
-section("resetting puts a page back to its designed size")
+section("resetting forgets the dragged size")
 Window:Show("audit")
 Window:Resize(1000, 800)
 assert(Window:ResetSize(), "reset ran")
-assert(select(1, Window:ContentSize()) == 680, "back to the natural width")
-assert(LootCheckDB.windowSize.audit == nil, "and the remembered size is gone")
+assert(LootCheckDB.windowSize.width == nil, "the dragged size is gone")
+-- Back to the audit page's own size, raised to the floor it cannot go below
+assert(select(1, Window:ContentSize()) == math.max(680, select(1, Window:MinimumSize())),
+    "back to its natural size, or the floor")
 
 section("cleanup")
 Window:Hide()

@@ -114,7 +114,9 @@ A row counts as a duplicate when that character already wants that item at the s
 
 ## Resizing
 
-The window is resizable by the grip in its bottom-right corner, and **each page remembers its own size**, because a graph and a settings page want different shapes. `/lchelp resetsize` puts the page you are on back to how it shipped.
+The window is resizable by the grip in its bottom-right corner. There is **one size for the whole window**: drag it on any page and every other page opens at that size, so navigating never resizes the window under you. `/lchelp resetsize` forgets it and returns to the current page's natural size.
+
+The window cannot go below what the **wishlist graph** needs to show both its columns, because that is the most demanding page — which is exactly what lets a single size suit all of them.
 
 Pages reflow rather than just stretching:
 
@@ -122,6 +124,7 @@ Pages reflow rather than just stretching:
 - The graph's two columns **split proportionally**, with a floor on each: the bars keep enough width to be worth comparing and the drops list keeps enough for its four columns. The bars themselves scale with the column.
 - Wrapping text is handed its new width and re-measured, so the commands page re-stacks — a narrower page wraps descriptions onto more lines and pushes shorthands onto their own line.
 - Sizes are clamped to your screen, so a size saved on a bigger monitor cannot leave the window larger than the display.
+- The minimum is derived from the pages themselves rather than hard-coded, so it follows the graph if its columns ever need more room.
 
 ## Audit
 

@@ -6,10 +6,13 @@
     under a shared title bar with a "< Back" button (to the home page) and a
     close button; Escape closes the window.
 
-    The window is resizable by the grip in its bottom-right corner, and each
-    page remembers its own size, because a graph and a settings page want very
-    different shapes. Sizes are clamped to the screen, so a saved size from a
-    bigger monitor cannot leave the window larger than the display.
+    The window is resizable by the grip in its bottom-right corner. There is
+    one size for the whole window rather than one per page, so the size you
+    drag to carries over when you switch pages. Its floor is whatever the most
+    demanding page needs (the wishlist graph, with its two columns), which is
+    what lets a single size suit every page. Sizes are clamped to the screen,
+    so one saved on a bigger monitor cannot leave the window larger than the
+    display.
 
     Pages register themselves at load time:
         LC.Window:RegisterPage("graph", {
@@ -54,23 +57,53 @@ function Window:ContentSize()
     return width, height - HEADER
 end
 
-local function SavedSizes()
+--- One size for the whole window, not one per page: drag it on any page and
+--- every other page opens at that size. Sizes from before this was shared were
+--- stored per page, so the largest of them is carried over rather than lost.
+local function SavedSize()
     LC.db = LC.db or LootCheckDB or {}
-    if type(LC.db.windowSize) ~= "table" then LC.db.windowSize = {} end
-    return LC.db.windowSize
+    local saved = LC.db.windowSize
+
+    if type(saved) ~= "table" then
+        saved = {}
+    elseif type(saved.width) ~= "number" then
+        local w, h
+        for _, entry in pairs(saved) do
+            if type(entry) == "table" and tonumber(entry.width) then
+                w = math.max(w or 0, entry.width)
+                h = math.max(h or 0, entry.height or 0)
+            end
+        end
+        saved = (w and { width = w, height = h }) or {}
+    end
+
+    LC.db.windowSize = saved
+    return saved
+end
+
+--- The smallest the window may be: whatever the most demanding page needs.
+--- That is the wishlist graph, which has to fit two columns side by side, so
+--- every page can be switched to without the window having to change size.
+function Window:MinimumSize()
+    local w, h = MIN_WIDTH, MIN_HEIGHT
+    for _, def in pairs(pages) do
+        w = math.max(w, def.minWidth or 0)
+        h = math.max(h, def.minHeight or 0)
+    end
+    return w, h
 end
 
 --- Nothing may end up bigger than the screen, whatever a saved size says: a
 --- size carried over from a larger monitor would otherwise be undraggable.
-local function Clamp(def, w, h)
+local function Clamp(w, h)
     local maxW, maxH = MAX_WIDTH, MAX_HEIGHT
     if UIParent and UIParent.GetWidth then
         maxW = math.min(maxW, UIParent:GetWidth() or maxW)
         maxH = math.min(maxH, UIParent:GetHeight() or maxH)
     end
 
-    local minW = math.min(def.minWidth or MIN_WIDTH, maxW)
-    local minH = math.min(def.minHeight or MIN_HEIGHT, maxH)
+    local minW, minH = Window:MinimumSize()
+    minW, minH = math.min(minW, maxW), math.min(minH, maxH)
 
     w = math.max(minW, math.min(w or minW, maxW))
     h = math.max(minH, math.min(h or minH, maxH))
@@ -88,16 +121,15 @@ local function ApplyLayout()
 end
 
 local function SaveSize()
-    if not current then return end
-    SavedSizes()[current] = { width = width, height = height }
+    local saved = SavedSize()
+    saved.width, saved.height = width, height
 end
 
 --- Resize the window and re-lay the page out. Used by the grip and on show.
 function Window:Resize(w, h)
-    local def = current and pages[current]
-    if not def or not frame then return end
+    if not frame then return end
 
-    width, height = Clamp(def, w, h)
+    width, height = Clamp(w, h)
     frame:SetSize(width, height)
     ApplyLayout()
 end
@@ -157,13 +189,16 @@ local function Build()
     f.back:SetScript("OnClick", function() Window:Back() end)
     f.back:Hide()
 
-    -- Resizing: bounds first, so dragging cannot make the window unusable
+    -- Resizing: bounds first, so dragging cannot make the window unusable.
+    -- The floor is whatever the most demanding page needs, so the size carries
+    -- from page to page without any of them being squeezed.
+    local minW, minH = Window:MinimumSize()
     f:SetResizable(true)
     if f.SetResizeBounds then
-        f:SetResizeBounds(MIN_WIDTH, MIN_HEIGHT, MAX_WIDTH, MAX_HEIGHT)
+        f:SetResizeBounds(minW, minH, MAX_WIDTH, MAX_HEIGHT)
     else
         -- Classic clients have the older pair
-        if f.SetMinResize then f:SetMinResize(MIN_WIDTH, MIN_HEIGHT) end
+        if f.SetMinResize then f:SetMinResize(minW, minH) end
         if f.SetMaxResize then f:SetMaxResize(MAX_WIDTH, MAX_HEIGHT) end
     end
 
@@ -235,10 +270,11 @@ function Window:Show(key)
     end
     current = key
 
-    -- The size this page was left at last time, else its natural size
-    local saved = SavedSizes()[key]
-    width, height = Clamp(def, saved and saved.width or def.width or 500,
-                               saved and saved.height or def.height or 400)
+    -- The size you last dragged the window to, whichever page you did it on,
+    -- else this page's natural size
+    local saved = SavedSize()
+    width, height = Clamp(saved.width or def.width or 500,
+                          saved.height or def.height or 400)
     frame:SetSize(width, height)
 
     frame.title:SetText(def.title or "LootCheck")
@@ -251,12 +287,12 @@ function Window:Show(key)
     return true
 end
 
---- Put the current page back to the size it was designed at.
+--- Forget the dragged size and go back to the current page's natural one.
 function Window:ResetSize()
     local def = current and pages[current]
     if not def then return false end
 
-    SavedSizes()[current] = nil
+    LC.db.windowSize = {}
     self:Resize(def.width or 500, def.height or 400)
     return true
 end

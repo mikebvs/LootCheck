@@ -3,6 +3,20 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-09-08
+
+### Changed
+
+- **One size for the whole window instead of one per page.** Drag it on any
+  page and every other page opens at that size, so switching pages no longer
+  resizes the window under you. A size saved per page by 1.4.0 is carried over
+  rather than lost: the largest of them becomes the shared one.
+- The minimum size is now whatever the most demanding page needs, which is the
+  wishlist graph and its two columns. It is derived from the pages rather than
+  hard-coded, so it follows the graph if its columns ever need more room. This
+  is what makes a single shared size safe: every page can be switched to
+  without the window having to change size to fit it.
+
 ## [1.4.0] - 2026-09-08
 
 ### Added
@@ -141,6 +155,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.4.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.1
 [1.4.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.0
 [1.3.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.3.1
 [1.3.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.3.0
