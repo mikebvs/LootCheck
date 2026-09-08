@@ -194,7 +194,15 @@ function Proto:SetSpacing(v) self._spacing = v end
 function Proto:GetChecked() return self._checked end
 function Proto:SetWidth(w) self._width = w end
 function Proto:SetHeight(h) self._height = h end
-function Proto:SetSize(w, h) self._width, self._height = w, h end
+function Proto:SetSize(w, h)
+    self._width, self._height = w, h
+    -- Mimic the client firing OnSizeChanged so resize handling is exercised
+    if self._scripts.OnSizeChanged then self._scripts.OnSizeChanged(self, w, h) end
+end
+function Proto:GetWidth() return self._width end
+function Proto:GetHeight() return self._height end
+function Proto:StartSizing() end
+function Proto:StopMovingOrSizing() end
 function Proto:GetPoint() return "CENTER", nil, "CENTER", 0, 0 end
 -- Anchors are remembered so the layout suite can assert that text which must
 -- not run off a page is bounded on the right as well as the left

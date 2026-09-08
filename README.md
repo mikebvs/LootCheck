@@ -32,6 +32,7 @@ LootCheck never writes to Gargul's data. The only thing it touches in TMBExport 
 | `/lchelp drops` | Open the graph page and its raid drops list (`/lchelp drops clear` forgets them) |
 | `/lchelp council` | Loot Council page: who is running LootCheck and on what version (`members` does the same) |
 | `/lchelp phase` | Show the content phase dates, or set one (`/lchelp phase P4 2026-10-15`) |
+| `/lchelp resetsize` | Put the current page back to its designed size |
 | `/lchelp check <item link>` | Print wishlist + award data for one item (shift-click the item into chat) |
 | `/lchelp status` | Show what data LootCheck can see and whether the tooltip integration is active |
 | `/lchelp greyos` | Toggle whether names awarded via an **OS** roll are also greyed on tooltips (default: on) |
@@ -110,6 +111,17 @@ A row counts as a duplicate when that character already wants that item at the s
 - The character does not have to be in the TMB export (PUGs). If they are in your group their class colour is picked up automatically.
 - Edits are stored per raid in `LootCheckDB.overrides`, never inside the import itself, so they survive re-imports. `removewlitem` on an imported entry hides it; `addwlitem` on the same item puts the original imported entry back.
 - The tooltip, the graph and `/lchelp check` all use the edited wishlist.
+
+## Resizing
+
+The window is resizable by the grip in its bottom-right corner, and **each page remembers its own size**, because a graph and a settings page want different shapes. `/lchelp resetsize` puts the page you are on back to how it shipped.
+
+Pages reflow rather than just stretching:
+
+- Lists (audit, raid drops, loot council) show **more rows** when the window is taller, and fewer when it is shorter, down to a floor of three.
+- The graph's two columns **split proportionally**, with a floor on each: the bars keep enough width to be worth comparing and the drops list keeps enough for its four columns. The bars themselves scale with the column.
+- Wrapping text is handed its new width and re-measured, so the commands page re-stacks — a narrower page wraps descriptions onto more lines and pushes shorthands onto their own line.
+- Sizes are clamped to your screen, so a size saved on a bigger monitor cannot leave the window larger than the display.
 
 ## Audit
 

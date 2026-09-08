@@ -624,13 +624,15 @@ end
 -- The panel on the Wishlist Awards page
 ------------------------------------------------------------------------------
 
-local ROW_HEIGHT, ROWS, HEAD_HEIGHT = 18, 21, 14
+local ROW_HEIGHT, ROWS, HEAD_HEIGHT = 18, 21, 14 -- ROWS at the natural height
+local RESERVED = 72 -- week stepper, blue-items box, column headings and padding
 -- "Tue 09:41" needs the room: at 56 the date was truncating to "Tue 09..."
 local TIME_WIDTH, LOOT_WIDTH, STATUS_WIDTH = 72, 88, 96
 
 local panel -- the container Graph.lua hands us
 local rows = {}
 Drops._rows = rows -- exposed for tests
+Drops.rowCount = ROWS -- recalculated from the container height, see Layout
 
 --- Class colour for a raider we know from the wishlist data
 local function NameHex(norm)
@@ -736,7 +738,21 @@ function Drops:BuildPanel(container)
     head.item:SetText("Item")
     container.head = head
 
-    for i = 1, ROWS do
+    container.rowParent = inset
+
+    container.empty = LC.Window:Text(inset, "GameFontHighlight", 200)
+    container.empty:SetPoint("TOPLEFT", 12, -12 - HEAD_HEIGHT)
+    container.empty:SetPoint("RIGHT", inset, "RIGHT", -12, 0)
+    container.empty:Hide()
+end
+
+--- Built on demand so the list can grow with the window
+local function GetRow(index)
+    if rows[index] then return rows[index] end
+    local inset = panel.rowParent
+
+    do
+        local i = index
         local row = CreateFrame("Frame", nil, inset)
         row:SetHeight(ROW_HEIGHT)
         row:SetPoint("TOPLEFT", 8, -6 - HEAD_HEIGHT - (i - 1) * ROW_HEIGHT)
@@ -776,12 +792,14 @@ function Drops:BuildPanel(container)
 
         row:Hide()
         rows[i] = row
+        return row
     end
+end
 
-    container.empty = LC.Window:Text(inset, "GameFontHighlight", 200)
-    container.empty:SetPoint("TOPLEFT", 12, -12)
-    container.empty:SetPoint("RIGHT", inset, "RIGHT", -12, 0)
-    container.empty:Hide()
+--- Fit as many drops as the column is now tall enough for
+function Drops:Layout(height)
+    self.rowCount = LC.Window:RowCount((height or 0) - RESERVED, ROW_HEIGHT, 3)
+    self:RefreshPanel()
 end
 
 function Drops:StepWeek(by)
@@ -803,11 +821,11 @@ function Drops:RefreshPanel()
     local list = self:List()
     self._list = list
 
-    FauxScrollFrame_Update(panel.scroll, #list, ROWS, ROW_HEIGHT)
+    FauxScrollFrame_Update(panel.scroll, #list, self.rowCount, ROW_HEIGHT)
     local offset = FauxScrollFrame_GetOffset(panel.scroll) or 0
 
-    for i = 1, ROWS do
-        local r, row = list[offset + i], rows[i]
+    for i = 1, self.rowCount do
+        local r, row = list[offset + i], GetRow(i)
         if r then
             row.time:SetText(date("%a %H:%M", r.t))
             local label = r.itemLink or r.itemName or ("item:" .. tostring(r.itemID))
@@ -823,6 +841,11 @@ function Drops:RefreshPanel()
             row:Hide()
             row.data = nil
         end
+    end
+
+    for i = self.rowCount + 1, #rows do
+        rows[i]:Hide()
+        rows[i].data = nil
     end
 
     local awarded, fake = 0, 0

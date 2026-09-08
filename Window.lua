@@ -4,14 +4,25 @@
     The single LootCheck window. Every screen is a "page" registered here
     (home, graph, imports, audit, help). The window shows one page at a time
     under a shared title bar with a "< Back" button (to the home page) and a
-    close button; Escape closes the window. Each page keeps its own size.
+    close button; Escape closes the window.
+
+    The window is resizable by the grip in its bottom-right corner, and each
+    page remembers its own size, because a graph and a settings page want very
+    different shapes. Sizes are clamped to the screen, so a saved size from a
+    bigger monitor cannot leave the window larger than the display.
 
     Pages register themselves at load time:
         LC.Window:RegisterPage("graph", {
             title = "...", frameName = "LootCheckGraphFrame", width = 500, height = 540,
-            build = function(pageFrame) ... end,   -- called once, lazily
-            onShow = function() ... end,           -- called every time the page is shown
+            minWidth = 420, minHeight = 300,        -- optional, defaults below
+            build = function(pageFrame) ... end,    -- called once, lazily
+            onShow = function() ... end,            -- called every time the page is shown
+            layout = function(pageFrame, w, h) end, -- called on show and while resizing
         })
+
+    A page's `layout` is handed the content size (the window minus the title
+    bar) rather than being asked to measure frames itself, so it behaves the
+    same in game and in the offline harness, where frames have no geometry.
 ]]
 
 local LC = LootCheck
@@ -21,12 +32,74 @@ LC.Window = Window
 local FRAME_NAME = "LootCheckWindow"
 local HEADER = 44 -- title bar height; page content starts below it
 
+local MIN_WIDTH, MIN_HEIGHT = 420, 280
+local MAX_WIDTH, MAX_HEIGHT = 2400, 1600
+
 local pages = {}
 local frame, current
+local width, height = 500, 400 -- the current window size, tracked so pages can
+                               -- lay out from a number rather than by measuring
 
 function Window:RegisterPage(key, def)
     def.key = key
     pages[key] = def
+end
+
+------------------------------------------------------------------------------
+-- Size
+------------------------------------------------------------------------------
+
+--- The space a page has to work with: the window minus the title bar.
+function Window:ContentSize()
+    return width, height - HEADER
+end
+
+local function SavedSizes()
+    LC.db = LC.db or LootCheckDB or {}
+    if type(LC.db.windowSize) ~= "table" then LC.db.windowSize = {} end
+    return LC.db.windowSize
+end
+
+--- Nothing may end up bigger than the screen, whatever a saved size says: a
+--- size carried over from a larger monitor would otherwise be undraggable.
+local function Clamp(def, w, h)
+    local maxW, maxH = MAX_WIDTH, MAX_HEIGHT
+    if UIParent and UIParent.GetWidth then
+        maxW = math.min(maxW, UIParent:GetWidth() or maxW)
+        maxH = math.min(maxH, UIParent:GetHeight() or maxH)
+    end
+
+    local minW = math.min(def.minWidth or MIN_WIDTH, maxW)
+    local minH = math.min(def.minHeight or MIN_HEIGHT, maxH)
+
+    w = math.max(minW, math.min(w or minW, maxW))
+    h = math.max(minH, math.min(h or minH, maxH))
+    return w, h
+end
+
+--- Tell the current page how much room it has, then let it refresh.
+local function ApplyLayout()
+    local def = current and pages[current]
+    if not def or not def.frame then return end
+    if def.layout then
+        local ok, err = pcall(def.layout, def.frame, width, height - HEADER)
+        if not ok then LC:Print("layout error on " .. tostring(current) .. ": " .. tostring(err)) end
+    end
+end
+
+local function SaveSize()
+    if not current then return end
+    SavedSizes()[current] = { width = width, height = height }
+end
+
+--- Resize the window and re-lay the page out. Used by the grip and on show.
+function Window:Resize(w, h)
+    local def = current and pages[current]
+    if not def or not frame then return end
+
+    width, height = Clamp(def, w, h)
+    frame:SetSize(width, height)
+    ApplyLayout()
 end
 
 local function SavePosition()
@@ -84,6 +157,48 @@ local function Build()
     f.back:SetScript("OnClick", function() Window:Back() end)
     f.back:Hide()
 
+    -- Resizing: bounds first, so dragging cannot make the window unusable
+    f:SetResizable(true)
+    if f.SetResizeBounds then
+        f:SetResizeBounds(MIN_WIDTH, MIN_HEIGHT, MAX_WIDTH, MAX_HEIGHT)
+    else
+        -- Classic clients have the older pair
+        if f.SetMinResize then f:SetMinResize(MIN_WIDTH, MIN_HEIGHT) end
+        if f.SetMaxResize then f:SetMaxResize(MAX_WIDTH, MAX_HEIGHT) end
+    end
+
+    local grip = CreateFrame("Button", FRAME_NAME .. "Grip", f)
+    grip:SetSize(16, 16)
+    grip:SetPoint("BOTTOMRIGHT", -6, 6)
+    grip:EnableMouse(true)
+
+    local gripTexture = grip:CreateTexture(nil, "OVERLAY")
+    gripTexture:SetAllPoints()
+    gripTexture:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    grip.texture = gripTexture
+
+    grip:SetScript("OnMouseDown", function()
+        f:StartSizing("BOTTOMRIGHT")
+    end)
+    grip:SetScript("OnMouseUp", function()
+        f:StopMovingOrSizing()
+        -- Trust the frame's own size after a drag, then clamp and store it
+        local w = (f.GetWidth and f:GetWidth()) or width
+        local h = (f.GetHeight and f:GetHeight()) or height
+        Window:Resize(w, h)
+        SaveSize()
+        SavePosition() -- sizing from a corner moves the anchor too
+    end)
+    f.grip = grip
+
+    -- Re-lay out live while the grip is being dragged, not only when released
+    f:SetScript("OnSizeChanged", function(self, w, h)
+        if not current then return end
+        width = w or width
+        height = h or height
+        ApplyLayout()
+    end)
+
     -- Escape closes the window
     tinsert(UISpecialFrames, FRAME_NAME)
     return f
@@ -120,13 +235,29 @@ function Window:Show(key)
     end
     current = key
 
-    frame:SetSize(def.width or 500, def.height or 400)
+    -- The size this page was left at last time, else its natural size
+    local saved = SavedSizes()[key]
+    width, height = Clamp(def, saved and saved.width or def.width or 500,
+                               saved and saved.height or def.height or 400)
+    frame:SetSize(width, height)
+
     frame.title:SetText(def.title or "LootCheck")
     if key == "home" then frame.back:Hide() else frame.back:Show() end
 
     frame:Show()
     def.frame:Show()
+    ApplyLayout()
     if def.onShow then def.onShow() end
+    return true
+end
+
+--- Put the current page back to the size it was designed at.
+function Window:ResetSize()
+    local def = current and pages[current]
+    if not def then return false end
+
+    SavedSizes()[current] = nil
+    self:Resize(def.width or 500, def.height or 400)
     return true
 end
 
@@ -207,6 +338,14 @@ function Window:Text(parent, style, width)
     end
 
     return fs
+end
+
+--- How many rows of `rowHeight` fit into `available` pixels. Pages call this
+--- from their layout so a taller window shows more rows rather than more
+--- empty inset.
+function Window:RowCount(available, rowHeight, minimum)
+    local count = math.floor((available or 0) / (rowHeight or 1))
+    return math.max(minimum or 1, count)
 end
 
 --- The button half of a dropdown: a dark panel with a left-aligned label and

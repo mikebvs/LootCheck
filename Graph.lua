@@ -28,12 +28,15 @@ local WIDTH, HEIGHT = 1000, 560
 local MARGIN = 22
 local ROW_HEIGHT = 22
 local NAME_WIDTH = 116
-local BAR_MAX = 160
-local LEFT_WIDTH = 394 -- the bar column; the drops list fills what is left
 local GAP = 14
-local CONTENT_WIDTH = LEFT_WIDTH - 40
--- Distance from the page's right edge back to the bar column's right edge
-local RIGHT_INSET = WIDTH - MARGIN * 2 - LEFT_WIDTH
+local MIN_LEFT = 320   -- narrower than this and the bars stop meaning anything
+local MIN_DROPS = 360  -- narrower than this and the drops columns collide
+local BAR_SHARE = 0.44 -- of the bar column, once the name and count have theirs
+
+-- Recomputed on every resize, see Graph:Layout
+local leftWidth = 394
+local contentWidth = leftWidth - 40
+local barMax = 160
 
 local frame -- the page
 local rows = {}
@@ -54,7 +57,8 @@ local function BuildPage(page)
     -- built first so the check box label can be bounded against it
     local refresh = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
     refresh:SetSize(80, 22)
-    refresh:SetPoint("TOPRIGHT", page.subtitle, "BOTTOMRIGHT", -RIGHT_INSET, -7)
+    refresh:SetPoint("TOPRIGHT", page.subtitle, "BOTTOMRIGHT", 0, -7) -- moved by Layout
+    page.refresh = refresh
     refresh:SetText("Refresh")
     refresh:SetScript("OnClick", function()
         LC.Data:Invalidate()
@@ -94,23 +98,24 @@ local function BuildPage(page)
 
     page.phaseLabel = LC.Window:Text(page, "GameFontNormalSmall")
     page.phaseLabel:SetPoint("LEFT", nextPhase, "RIGHT", 6, 0)
-    page.phaseLabel:SetPoint("RIGHT", page, "LEFT", MARGIN + LEFT_WIDTH, 0)
+    page.phaseLabel:SetPoint("RIGHT", page, "LEFT", MARGIN + leftWidth, 0)
 
     local header = LC.Window:Text(page, "GameFontDisableSmall")
     header:SetPoint("TOPLEFT", prevPhase, "BOTTOMLEFT", 0, -6)
     header:SetText("Raider")
+    page.header = header
     -- Bounded by the bar column's right edge: unbounded, this ran on into the
     -- raid drops list next to it
     local header2 = LC.Window:Text(page, "GameFontDisableSmall")
     header2:SetPoint("LEFT", header, "LEFT", NAME_WIDTH + 8, 0)
-    header2:SetPoint("RIGHT", page, "LEFT", MARGIN + LEFT_WIDTH, 0)
+    header2:SetPoint("RIGHT", page, "LEFT", MARGIN + leftWidth, 0)
     header2:SetText("Awarded: current wishlist (all time)")
     page.header2 = header2
 
     -- The list sits on a dark inset so it reads as a panel of its own
     local inset = LC.Window:CreateInset(page, "LootCheckGraphFrameInset")
     inset:SetPoint("TOPLEFT", header, "BOTTOMLEFT", -4, -4)
-    inset:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN - RIGHT_INSET, 18)
+    inset:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN, 18) -- moved by Layout
     page.inset = inset
 
     local scroll = CreateFrame("ScrollFrame", "LootCheckGraphFrameScroll", inset, "UIPanelScrollFrameTemplate")
@@ -118,17 +123,17 @@ local function BuildPage(page)
     scroll:SetPoint("BOTTOMRIGHT", -28, 8)
 
     local content = CreateFrame("Frame", nil, scroll)
-    content:SetSize(CONTENT_WIDTH, 10)
+    content:SetSize(contentWidth, 10)
     scroll:SetScrollChild(content)
     page.content = content
 
-    page.empty = LC.Window:Text(content, "GameFontHighlight", CONTENT_WIDTH - 12)
+    page.empty = LC.Window:Text(content, "GameFontHighlight", contentWidth - 12)
     page.empty:SetPoint("TOPLEFT", 2, -8)
     page.empty:Hide()
 
     -- Right column: Drops.lua fills this container itself
     local dropsColumn = CreateFrame("Frame", "LootCheckGraphFrameDrops", page)
-    dropsColumn:SetPoint("TOPLEFT", page.subtitle, "BOTTOMLEFT", LEFT_WIDTH + GAP, -8)
+    dropsColumn:SetPoint("TOPLEFT", page.subtitle, "BOTTOMLEFT", leftWidth + GAP, -8) -- moved by Layout
     dropsColumn:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN, 18)
     page.dropsColumn = dropsColumn
     LC.Drops:BuildPanel(dropsColumn)
@@ -138,7 +143,7 @@ local function GetRow(index)
     if rows[index] then return rows[index] end
 
     local row = CreateFrame("Frame", nil, frame.content)
-    row:SetSize(CONTENT_WIDTH, ROW_HEIGHT)
+    row:SetSize(contentWidth, ROW_HEIGHT)
     row:SetPoint("TOPLEFT", 0, -(index - 1) * ROW_HEIGHT)
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self) Graph:ShowRowTooltip(self) end)
@@ -156,7 +161,7 @@ local function GetRow(index)
 
     row.track = row:CreateTexture(nil, "BORDER")
     row.track:SetPoint("LEFT", row.name, "RIGHT", 8, 0)
-    row.track:SetSize(BAR_MAX, ROW_HEIGHT - 8)
+    row.track:SetSize(barMax, ROW_HEIGHT - 8)
     row.track:SetColorTexture(1, 1, 1, 0.08)
 
     row.bar = row:CreateTexture(nil, "ARTWORK")
@@ -168,6 +173,64 @@ local function GetRow(index)
 
     rows[index] = row
     return row
+end
+
+------------------------------------------------------------------------------
+-- Layout
+------------------------------------------------------------------------------
+
+--- Split the page between the bars and the drops list. Both have a floor, so
+--- on a narrow window the drops column keeps enough room for its four columns
+--- and the bars keep enough to be worth reading; below that the page simply
+--- cannot go, which is what the window's minimum size is for.
+function Graph:Layout(page, w, h)
+    if not frame then return end
+
+    local available = w - MARGIN * 2 - GAP
+    leftWidth = math.max(MIN_LEFT, math.floor(available * 0.42))
+    if available - leftWidth < MIN_DROPS then
+        leftWidth = math.max(MIN_LEFT, available - MIN_DROPS)
+    end
+
+    contentWidth = leftWidth - 40
+    barMax = math.max(60, math.floor((contentWidth - NAME_WIDTH - 70) * BAR_SHARE) + 60)
+
+    local rightInset = w - MARGIN * 2 - leftWidth
+
+    frame.subtitle:SetWidth(w - MARGIN * 2)
+
+    frame.refresh:ClearAllPoints()
+    frame.refresh:SetPoint("TOPRIGHT", frame.subtitle, "BOTTOMRIGHT", -rightInset, -7)
+
+    frame.phaseLabel:ClearAllPoints()
+    frame.phaseLabel:SetPoint("LEFT", frame.nextPhase, "RIGHT", 6, 0)
+    frame.phaseLabel:SetPoint("RIGHT", page, "LEFT", MARGIN + leftWidth, 0)
+
+    frame.header2:ClearAllPoints()
+    frame.header2:SetPoint("LEFT", frame.header, "LEFT", NAME_WIDTH + 8, 0)
+    frame.header2:SetPoint("RIGHT", page, "LEFT", MARGIN + leftWidth, 0)
+
+    frame.inset:ClearAllPoints()
+    frame.inset:SetPoint("TOPLEFT", frame.header, "BOTTOMLEFT", -4, -4)
+    frame.inset:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN - rightInset, 18)
+
+    frame.dropsColumn:ClearAllPoints()
+    frame.dropsColumn:SetPoint("TOPLEFT", frame.subtitle, "BOTTOMLEFT", leftWidth + GAP, -8)
+    frame.dropsColumn:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN, 18)
+
+    frame.content:SetWidth(contentWidth)
+    frame.empty:SetWidth(contentWidth - 12)
+    for _, row in ipairs(rows) do
+        row:SetWidth(contentWidth)
+        row.track:SetSize(barMax, ROW_HEIGHT - 8)
+    end
+
+    -- The drops column owns its own height, so hand it the room it now has
+    if LC.Drops and LC.Drops.Layout then
+        LC.Drops:Layout(h - 30)
+    end
+
+    self:Refresh()
 end
 
 ------------------------------------------------------------------------------
@@ -239,7 +302,7 @@ function Graph:Refresh()
         row.name:SetText(r.displayName)
         row.name:SetTextColor(cr, cg, cb)
 
-        local width = maxCount > 0 and (r.count / maxCount) * BAR_MAX or 0
+        local width = maxCount > 0 and (r.count / maxCount) * barMax or 0
         if width > 0 then
             row.bar:SetWidth(math.max(width, 2))
             row.bar:SetColorTexture(cr, cg, cb, 0.85)
@@ -370,6 +433,10 @@ LC.Window:RegisterPage(PAGE, {
     frameName = "LootCheckGraphFrame",
     width = WIDTH,
     height = HEIGHT,
+    -- Below this the two columns cannot both hold their contents
+    minWidth = MIN_LEFT + MIN_DROPS + MARGIN * 2 + GAP,
+    minHeight = 360,
     build = BuildPage,
+    layout = function(page, w, h) Graph:Layout(page, w, h) end,
     onShow = function() Graph:Refresh() end,
 })

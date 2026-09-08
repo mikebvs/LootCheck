@@ -17,7 +17,9 @@ LC.Audit = Audit
 local PAGE = "audit"
 local WIDTH, HEIGHT = 680, 540
 local MARGIN = 22
-local ROW_HEIGHT, ROWS = 20, 20
+local ROW_HEIGHT, ROWS = 20, 20 -- ROWS is the count at the page's natural height
+-- Everything above the list: the range dropdown, the check box and padding
+local RESERVED = 86
 local TIME_WIDTH = 92
 local DAY = 86400
 
@@ -37,6 +39,7 @@ Audit.RANGES = {
 local frame
 local rows = {}
 Audit._rows = rows -- exposed for tests
+Audit.rowCount = ROWS -- recalculated from the window height, see Layout
 
 local function Log()
     LC.db = LC.db or LootCheckDB or {}
@@ -319,33 +322,47 @@ local function BuildPage(page)
     end)
     page.scroll = scroll
 
-    for i = 1, ROWS do
-        local row = CreateFrame("Frame", nil, list)
-        row:SetHeight(ROW_HEIGHT)
-        row:SetPoint("TOPLEFT", 8, -8 - (i - 1) * ROW_HEIGHT)
-        row:SetPoint("RIGHT", list, "RIGHT", -30, 0)
-
-        row.highlight = row:CreateTexture(nil, "BACKGROUND")
-        row.highlight:SetAllPoints()
-        row.highlight:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.04 or 0)
-
-        row.time = LC.Window:Text(row, "GameFontDisableSmall")
-        row.time:SetPoint("LEFT", 2, 0)
-        row.time:SetWidth(TIME_WIDTH)
-
-        -- One line per entry: long item names are truncated, never wrapped
-        row.text = LC.Window:Text(row, "GameFontHighlightSmall")
-        row.text:SetPoint("LEFT", row.time, "RIGHT", 8, 0)
-        row.text:SetPoint("RIGHT", row, "RIGHT", -2, 0)
-
-        row:Hide()
-        rows[i] = row
-    end
+    page.rowParent = list
 
     page.empty = LC.Window:Text(list, "GameFontHighlight", WIDTH - MARGIN * 2 - 40)
     page.empty:SetPoint("TOPLEFT", 12, -12)
     page.empty:SetText("Nothing to show yet.")
     page.empty:Hide()
+end
+
+--- Rows are built the first time they are needed, so the count can grow with
+--- the window instead of being fixed when the page is built.
+local function GetRow(index)
+    if rows[index] then return rows[index] end
+
+    local list = frame.rowParent
+    local row = CreateFrame("Frame", nil, list)
+    row:SetHeight(ROW_HEIGHT)
+    row:SetPoint("TOPLEFT", 8, -8 - (index - 1) * ROW_HEIGHT)
+    row:SetPoint("RIGHT", list, "RIGHT", -30, 0)
+
+    row.highlight = row:CreateTexture(nil, "BACKGROUND")
+    row.highlight:SetAllPoints()
+    row.highlight:SetColorTexture(1, 1, 1, index % 2 == 0 and 0.04 or 0)
+
+    row.time = LC.Window:Text(row, "GameFontDisableSmall")
+    row.time:SetPoint("LEFT", 2, 0)
+    row.time:SetWidth(TIME_WIDTH)
+
+    -- One line per entry: long item names are truncated, never wrapped
+    row.text = LC.Window:Text(row, "GameFontHighlightSmall")
+    row.text:SetPoint("LEFT", row.time, "RIGHT", 8, 0)
+    row.text:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+
+    row:Hide()
+    rows[index] = row
+    return row
+end
+
+--- Fit as many rows as the window is now tall enough for.
+function Audit:Layout(page, w, h)
+    self.rowCount = LC.Window:RowCount(h - RESERVED, ROW_HEIGHT, 3)
+    self:Refresh()
 end
 
 function Audit:Refresh()
@@ -360,12 +377,12 @@ function Audit:Refresh()
     local entries = self:Entries({ wishlistOnly = s.auditWishlistOnly, from = from, to = to })
     self._entries = entries
 
-    FauxScrollFrame_Update(frame.scroll, #entries, ROWS, ROW_HEIGHT)
+    FauxScrollFrame_Update(frame.scroll, #entries, self.rowCount, ROW_HEIGHT)
     local offset = FauxScrollFrame_GetOffset(frame.scroll) or 0
 
-    for i = 1, ROWS do
+    for i = 1, self.rowCount do
         local e = entries[offset + i]
-        local row = rows[i]
+        local row = GetRow(i)
         if e then
             row.time:SetText(e.t > 0 and date("%Y-%m-%d %H:%M", e.t) or "?")
             row.text:SetText(RowText(e))
@@ -373,6 +390,11 @@ function Audit:Refresh()
         else
             row:Hide()
         end
+    end
+
+    -- Rows left over from a taller window
+    for i = self.rowCount + 1, #rows do
+        rows[i]:Hide()
     end
 
     frame.count:SetText(("%d entries |cff7f7f7f(%s)|r"):format(#entries, self:RangeText(range):lower()))
@@ -409,6 +431,8 @@ LC.Window:RegisterPage(PAGE, {
     frameName = "LootCheckAuditFrame",
     width = WIDTH,
     height = HEIGHT,
+    minWidth = 520,
     build = BuildPage,
+    layout = function(page, w, h) Audit:Layout(page, w, h) end,
     onShow = function() Audit:Refresh() end,
 })

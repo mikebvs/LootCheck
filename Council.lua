@@ -22,7 +22,8 @@ LC.Council = Council
 local PAGE = "council"
 local WIDTH, HEIGHT = 620, 500
 local MARGIN = 22
-local ROW_HEIGHT, ROWS, HEAD_HEIGHT = 20, 17, 14
+local ROW_HEIGHT, ROWS, HEAD_HEIGHT = 20, 17, 14 -- ROWS at the natural height
+local RESERVED = 96 -- subtitle, check box row, column headings and padding
 local NAME_WIDTH, VERSION_WIDTH, WHERE_WIDTH = 150, 90, 96
 
 -- How long after a ping to stop expecting more replies
@@ -31,6 +32,7 @@ Council.SETTLE = 3
 local frame
 local rows = {}
 Council._rows = rows -- exposed for tests
+Council.rowCount = ROWS -- recalculated from the window height, see Layout
 
 local function Settings()
     LC.db = LC.db or LootCheckDB or {}
@@ -177,35 +179,7 @@ local function BuildPage(page)
     head.state:SetText("Status")
     page.head = head
 
-    for i = 1, ROWS do
-        local row = CreateFrame("Frame", nil, inset)
-        row:SetHeight(ROW_HEIGHT)
-        row:SetPoint("TOPLEFT", 8, -6 - HEAD_HEIGHT - (i - 1) * ROW_HEIGHT)
-        row:SetPoint("RIGHT", inset, "RIGHT", -30, 0)
-
-        row.highlight = row:CreateTexture(nil, "BACKGROUND")
-        row.highlight:SetAllPoints()
-        row.highlight:SetColorTexture(1, 1, 1, i % 2 == 0 and 0.04 or 0)
-
-        row.name = LC.Window:Text(row, "GameFontHighlightSmall")
-        row.name:SetPoint("LEFT", 2, 0)
-        row.name:SetWidth(NAME_WIDTH)
-
-        row.version = LC.Window:Text(row, "GameFontHighlightSmall")
-        row.version:SetPoint("LEFT", row.name, "RIGHT", 6, 0)
-        row.version:SetWidth(VERSION_WIDTH)
-
-        row.where = LC.Window:Text(row, "GameFontDisableSmall")
-        row.where:SetPoint("LEFT", row.version, "RIGHT", 6, 0)
-        row.where:SetWidth(WHERE_WIDTH)
-
-        row.state = LC.Window:Text(row, "GameFontHighlightSmall")
-        row.state:SetPoint("LEFT", row.where, "RIGHT", 6, 0)
-        row.state:SetPoint("RIGHT", row, "RIGHT", -2, 0)
-
-        row:Hide()
-        rows[i] = row
-    end
+    page.rowParent = inset
 
     page.empty = LC.Window:Text(inset, "GameFontHighlight", WIDTH - MARGIN * 2 - 60)
     page.empty:SetPoint("TOPLEFT", 12, -12 - HEAD_HEIGHT)
@@ -234,6 +208,49 @@ function Council:Check()
     return asked
 end
 
+--- Built on demand, so a taller window simply shows more of the roster.
+local function GetRow(index)
+    if rows[index] then return rows[index] end
+
+    local inset = frame.rowParent
+    local row = CreateFrame("Frame", nil, inset)
+    row:SetHeight(ROW_HEIGHT)
+    row:SetPoint("TOPLEFT", 8, -6 - HEAD_HEIGHT - (index - 1) * ROW_HEIGHT)
+    row:SetPoint("RIGHT", inset, "RIGHT", -30, 0)
+
+    row.highlight = row:CreateTexture(nil, "BACKGROUND")
+    row.highlight:SetAllPoints()
+    row.highlight:SetColorTexture(1, 1, 1, index % 2 == 0 and 0.04 or 0)
+
+    row.name = LC.Window:Text(row, "GameFontHighlightSmall")
+    row.name:SetPoint("LEFT", 2, 0)
+    row.name:SetWidth(NAME_WIDTH)
+
+    row.version = LC.Window:Text(row, "GameFontHighlightSmall")
+    row.version:SetPoint("LEFT", row.name, "RIGHT", 6, 0)
+    row.version:SetWidth(VERSION_WIDTH)
+
+    row.where = LC.Window:Text(row, "GameFontDisableSmall")
+    row.where:SetPoint("LEFT", row.version, "RIGHT", 6, 0)
+    row.where:SetWidth(WHERE_WIDTH)
+
+    row.state = LC.Window:Text(row, "GameFontHighlightSmall")
+    row.state:SetPoint("LEFT", row.where, "RIGHT", 6, 0)
+    row.state:SetPoint("RIGHT", row, "RIGHT", -2, 0)
+
+    row:Hide()
+    rows[index] = row
+    return row
+end
+
+function Council:Layout(page, w, h)
+    self.rowCount = LC.Window:RowCount(h - RESERVED, ROW_HEIGHT, 3)
+    if frame then
+        frame.subtitle:SetWidth(w - MARGIN * 2)
+        self:Refresh()
+    end
+end
+
 function Council:Refresh()
     if not frame then return end
 
@@ -255,11 +272,11 @@ function Council:Refresh()
             mine, running, silent))
     end
 
-    FauxScrollFrame_Update(frame.scroll, #list, ROWS, ROW_HEIGHT)
+    FauxScrollFrame_Update(frame.scroll, #list, self.rowCount, ROW_HEIGHT)
     local offset = FauxScrollFrame_GetOffset(frame.scroll) or 0
 
-    for i = 1, ROWS do
-        local entry, row = list[offset + i], rows[i]
+    for i = 1, self.rowCount do
+        local entry, row = list[offset + i], GetRow(i)
         if entry then
             row.name:SetText(("|cff%s%s|r"):format(LC:ClassHex(entry.class), tostring(entry.name)))
             row.version:SetText(entry.version and ("v" .. entry.version) or "|cff5f5f5f-|r")
@@ -273,6 +290,11 @@ function Council:Refresh()
             row:Hide()
             row.data = nil
         end
+    end
+
+    for i = self.rowCount + 1, #rows do
+        rows[i]:Hide()
+        rows[i].data = nil
     end
 
     if #list == 0 then
@@ -312,7 +334,9 @@ LC.Window:RegisterPage(PAGE, {
     frameName = "LootCheckCouncilFrame",
     width = WIDTH,
     height = HEIGHT,
+    minWidth = 520,
     build = BuildPage,
+    layout = function(page, w, h) Council:Layout(page, w, h) end,
     -- Opening the page asks; the list fills in as replies arrive
     onShow = function() Council:Check() end,
 })

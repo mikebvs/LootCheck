@@ -28,6 +28,8 @@ Help.COMMANDS = {
       desc = "Open this list. \"/lchelp help chat\" prints it to the chat frame instead." },
     { cmd = "/lchelp graph", args = "[days]", aliases = { "/lchg" },
       desc = "Open the wishlist award graph. The bars count awards that match the wishlist you currently have imported. The < > buttons filter by content phase instead (see /lchelp phase), and a number limits the bars to awards from the last that many days (0 = no limit). Both are remembered." },
+    { cmd = "/lchelp resetsize",
+      desc = "Put the page you are on back to the size it was designed at. The window is resizable by the grip in its bottom-right corner and each page remembers its own size, so this only affects the page currently open." },
     { cmd = "/lchelp phase", args = "[P4] [YYYY-MM-DD | reset]", aliases = { "/lchelp phases" },
       desc = "Show the content phase dates, or set one. Dates only drive the graph's phase filter (the < > buttons); they have nothing to do with the \"current wishlist\" number, which counts against the wishlist you have imported and changes when you re-import. P4 (Zul'Aman) and P5 (Sunwell) have no announced date yet, so set them yourself when Blizzard says: \"/lchelp phase P4 2026-10-15\". Your dates are remembered, and \"reset\" restores the default." },
     { cmd = "/lchelp council", aliases = { "/lchc", "/lchelp members" },
@@ -90,47 +92,75 @@ local function BuildPage(page)
     local content = CreateFrame("Frame", nil, scroll)
     content:SetSize(CONTENT_WIDTH, 10)
     scroll:SetScrollChild(content)
+    page.content = content
 
-    local y = 2
-    local intro = LC.Window:Text(content, "GameFontHighlight", CONTENT_WIDTH - 8)
-    intro:SetPoint("TOPLEFT", 2, -y)
-    intro:SetText("Every command can be typed as /lchelp <command> or /lootcheck <command>. Items can be given as a shift-clicked link, an item ID, or a unique part of the item's name.")
-    y = y + LC.Window:TextHeight(intro, 3) + 16
+    page.intro = LC.Window:Text(content, "GameFontHighlight", CONTENT_WIDTH - 8)
+    page.intro:SetText("Every command can be typed as /lchelp <command> or /lootcheck <command>. Items can be given as a shift-clicked link, an item ID, or a unique part of the item's name.")
 
     for _, c in ipairs(Help.COMMANDS) do
-        local cmdText = c.cmd .. ((c.args and c.args ~= "") and (" |cffaaaaaa" .. c.args .. "|r") or "")
         local cmd = LC.Window:Text(content, "GameFontNormal")
-        cmd:SetPoint("TOPLEFT", 2, -y)
-        cmd:SetText(cmdText)
+        cmd:SetText(c.cmd .. ((c.args and c.args ~= "") and (" |cffaaaaaa" .. c.args .. "|r") or ""))
+
+        local shorthand
+        if c.aliases and #c.aliases > 0 then
+            shorthand = LC.Window:Text(content, "GameFontNormalSmall")
+            shorthand:SetText("|cffff7fd2Shorthands: " .. table.concat(c.aliases, ", ") .. "|r")
+        end
+
+        local desc = LC.Window:Text(content, "GameFontHighlightSmall", CONTENT_WIDTH - 20)
+        desc:SetText(c.desc)
+        desc:SetTextColor(0.82, 0.82, 0.82)
+
+        tinsert(rows, { cmd = cmd, shorthand = shorthand, desc = desc, data = c })
+    end
+
+    Help:Stack(page, CONTENT_WIDTH)
+end
+
+--- Position every row top-down for a given content width. Re-run on resize,
+--- because a narrower page wraps descriptions onto more lines and a wider one
+--- lets shorthands sit beside their command instead of below it.
+function Help:Stack(page, contentWidth)
+    local content = page.content
+    if not content then return end
+
+    content:SetWidth(contentWidth)
+    page.intro:SetWidth(contentWidth - 8)
+    page.intro:ClearAllPoints()
+
+    local y = 2
+    page.intro:SetPoint("TOPLEFT", 2, -y)
+    y = y + LC.Window:TextHeight(page.intro, 3) + 16
+
+    for _, row in ipairs(rows) do
+        local c = row.data
+        row.cmd:ClearAllPoints()
+        row.cmd:SetPoint("TOPLEFT", 2, -y)
 
         -- Shorthands sit beside the command when they fit, on their own line otherwise
-        local shorthand, ownLine
-        if c.aliases and #c.aliases > 0 then
-            local shorthandText = "|cffff7fd2Shorthands: " .. table.concat(c.aliases, ", ") .. "|r"
-            shorthand = LC.Window:Text(content, "GameFontNormalSmall")
-            shorthand:SetText(shorthandText)
-
-            local cmdWidth = TextWidth(cmd, c.cmd .. " " .. (c.args or ""), 7)
-            local shorthandWidth = TextWidth(shorthand, shorthandText:gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", ""), 6)
-            ownLine = (cmdWidth + 16 + shorthandWidth) > (CONTENT_WIDTH - 8)
+        local ownLine
+        if row.shorthand then
+            row.shorthand:ClearAllPoints()
+            local plain = (row.shorthand:GetText() or ""):gsub("|c%x%x%x%x%x%x%x%x", ""):gsub("|r", "")
+            local cmdWidth = TextWidth(row.cmd, c.cmd .. " " .. (c.args or ""), 7)
+            ownLine = (cmdWidth + 16 + TextWidth(row.shorthand, plain, 6)) > (contentWidth - 8)
 
             if ownLine then
-                y = y + LC.Window:TextHeight(cmd, 1) + 2
-                shorthand:SetPoint("TOPLEFT", 10, -y)
+                y = y + LC.Window:TextHeight(row.cmd, 1) + 2
+                row.shorthand:SetPoint("TOPLEFT", 10, -y)
             else
-                shorthand:SetPoint("LEFT", cmd, "RIGHT", 16, 0)
+                row.shorthand:SetPoint("LEFT", row.cmd, "RIGHT", 16, 0)
             end
         end
 
-        y = y + LC.Window:TextHeight(ownLine and shorthand or cmd, 1) + 4
+        y = y + LC.Window:TextHeight(ownLine and row.shorthand or row.cmd, 1) + 4
 
-        local desc = LC.Window:Text(content, "GameFontHighlightSmall", CONTENT_WIDTH - 20)
-        desc:SetPoint("TOPLEFT", 10, -y)
-        desc:SetText(c.desc)
-        desc:SetTextColor(0.82, 0.82, 0.82)
-        y = y + LC.Window:TextHeight(desc, math.max(1, math.ceil(#c.desc / 88))) + 18
-
-        tinsert(rows, { cmd = cmd, shorthand = shorthand, desc = desc, data = c })
+        row.desc:SetWidth(contentWidth - 20)
+        row.desc:ClearAllPoints()
+        row.desc:SetPoint("TOPLEFT", 10, -y)
+        -- Roughly 88 characters fit per line at the natural width
+        local perLine = math.max(20, math.floor(88 * contentWidth / CONTENT_WIDTH))
+        y = y + LC.Window:TextHeight(row.desc, math.max(1, math.ceil(#c.desc / perLine))) + 18
     end
 
     content:SetHeight(y + 8)
@@ -158,10 +188,15 @@ function Help:PrintToChat()
     end
 end
 
+function Help:Layout(page, w)
+    self:Stack(page, w - MARGIN * 2 - 40)
+end
+
 LC.Window:RegisterPage(PAGE, {
     title = "LootCheck - Slash Commands",
     frameName = "LootCheckHelpFrame",
     width = WIDTH,
     height = HEIGHT,
     build = BuildPage,
+    layout = function(page, w) Help:Layout(page, w) end,
 })

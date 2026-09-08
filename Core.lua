@@ -61,6 +61,7 @@ local DEFAULTS = {
     auditLog = {},             -- manual-edit commands, shown on the Audit page (see Audit.lua)
     drops = {},                -- items that dropped in the raid, per raid week (see Drops.lua)
     phaseDates = {},           -- phase key -> date you set by hand (see Phases.lua)
+    windowSize = {},           -- page key -> { width, height } after you resized it (see Window.lua)
 }
 
 ------------------------------------------------------------------------------
@@ -446,6 +447,13 @@ SlashCmdList["LOOTCHECK"] = function(msg)
             LC.Graph:Open()
         else
             LC.Graph:Toggle()
+        end
+
+    elseif cmd == "resetsize" then
+        if LC.Window:ResetSize() then
+            LC:Print("this page is back to its default size.")
+        else
+            LC:Print("open a page first, then |cff33ccff/lchelp resetsize|r puts it back.")
         end
 
     elseif cmd == "phase" or cmd == "phases" then

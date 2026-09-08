@@ -3,6 +3,19 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-09-08
+
+### Added
+
+- **The window is resizable**, by the grip in its bottom-right corner. Each
+  page remembers its own size, sizes are clamped to the screen so one saved on
+  a larger monitor cannot outgrow the display, and `/lchelp resetsize` puts the
+  current page back to how it shipped.
+- Pages reflow rather than stretch. The audit, raid drops and loot council
+  lists show more rows when the window is taller; the graph's two columns split
+  proportionally with a floor on each, and the bars scale with their column;
+  the commands page re-wraps and re-stacks at its new width.
+
 ## [1.3.1] - 2026-09-08
 
 ### Changed
@@ -128,6 +141,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.4.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.0
 [1.3.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.3.1
 [1.3.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.3.0
 [1.2.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.2.1

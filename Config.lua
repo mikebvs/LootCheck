@@ -244,5 +244,8 @@ LC.Window:RegisterPage(PAGE, {
     width = WIDTH,
     height = HEIGHT,
     build = BuildPage,
+    layout = function(page, w)
+        for i = 1, 3 do page.status[i]:SetWidth(w - MARGIN * 2) end
+    end,
     onShow = function() Config:Refresh() end,
 })
