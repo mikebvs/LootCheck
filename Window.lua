@@ -88,9 +88,35 @@ function Window:MinimumSize()
     local w, h = MIN_WIDTH, MIN_HEIGHT
     for _, def in pairs(pages) do
         w = math.max(w, def.minWidth or 0)
-        h = math.max(h, def.minHeight or 0)
+        -- Pages state what their *content* needs; the title bar sits on top
+        h = math.max(h, (def.minHeight or 0) + HEADER)
     end
     return w, h
+end
+
+--- Keep the client's resize bounds in step with what the pages need, and make
+--- sure the current size is inside them.
+---
+--- These two disagreeing is what makes a window jump the instant sizing
+--- starts: the client enforces the bounds at that moment, so a frame sitting
+--- below its own minimum is snapped up to it and the drag appears to begin
+--- with a lurch. Called before every resize and on every page change, so the
+--- two can never drift apart.
+function Window:ApplyBounds()
+    if not frame then return end
+
+    local minW, minH = self:MinimumSize()
+    if frame.SetResizeBounds then
+        frame:SetResizeBounds(minW, minH, MAX_WIDTH, MAX_HEIGHT)
+    else
+        -- Classic clients have the older pair
+        if frame.SetMinResize then frame:SetMinResize(minW, minH) end
+        if frame.SetMaxResize then frame:SetMaxResize(MAX_WIDTH, MAX_HEIGHT) end
+    end
+
+    if width < minW or height < minH then
+        self:Resize(width, height) -- Clamp raises it to the minimum
+    end
 end
 
 --- Nothing may end up bigger than the screen, whatever a saved size says: a
@@ -189,18 +215,10 @@ local function Build()
     f.back:SetScript("OnClick", function() Window:Back() end)
     f.back:Hide()
 
-    -- Resizing: bounds first, so dragging cannot make the window unusable.
-    -- The floor is whatever the most demanding page needs, so the size carries
-    -- from page to page without any of them being squeezed.
-    local minW, minH = Window:MinimumSize()
+    -- The floor is whatever the most demanding page needs, so one size carries
+    -- from page to page without any of them being squeezed. Window:ApplyBounds
+    -- keeps the client in step with it.
     f:SetResizable(true)
-    if f.SetResizeBounds then
-        f:SetResizeBounds(minW, minH, MAX_WIDTH, MAX_HEIGHT)
-    else
-        -- Classic clients have the older pair
-        if f.SetMinResize then f:SetMinResize(minW, minH) end
-        if f.SetMaxResize then f:SetMaxResize(MAX_WIDTH, MAX_HEIGHT) end
-    end
 
     local grip = CreateFrame("Button", FRAME_NAME .. "Grip", f)
     grip:SetSize(16, 16)
@@ -212,10 +230,17 @@ local function Build()
     gripTexture:SetTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
     grip.texture = gripTexture
 
-    grip:SetScript("OnMouseDown", function()
+    -- Sizing begins on a drag, not on a mouse-down. Starting it on mouse-down
+    -- meant a plain click already put the frame into sizing mode, so the
+    -- smallest twitch of the cursor resized it, and the client snapped the
+    -- frame up to its minimum the moment sizing began if it happened to be
+    -- smaller than that.
+    grip:RegisterForDrag("LeftButton")
+    grip:SetScript("OnDragStart", function()
+        Window:ApplyBounds()
         f:StartSizing("BOTTOMRIGHT")
     end)
-    grip:SetScript("OnMouseUp", function()
+    grip:SetScript("OnDragStop", function()
         f:StopMovingOrSizing()
         -- Trust the frame's own size after a drag, then clamp and store it
         local w = (f.GetWidth and f:GetWidth()) or width
@@ -282,6 +307,7 @@ function Window:Show(key)
 
     frame:Show()
     def.frame:Show()
+    self:ApplyBounds()
     ApplyLayout()
     if def.onShow then def.onShow() end
     return true

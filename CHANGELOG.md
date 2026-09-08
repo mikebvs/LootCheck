@@ -3,6 +3,22 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.2] - 2026-09-08
+
+### Fixed
+
+- Clicking the resize grip made the window jump wider before any dragging.
+  Sizing began on mouse-down, so a plain click already put the frame into
+  sizing mode and the client applied the resize bounds at that instant,
+  snapping a frame that sat below its minimum up to it. Sizing now begins on a
+  drag, so a click on the grip does nothing on its own.
+- The resize bounds were set once when the window was built and never again,
+  so they could disagree with what the pages actually need. They are now
+  reapplied on every page change and before every resize, and the frame is
+  raised into them if it is ever outside.
+- A page's `minHeight` is now read as what its content needs, with the title
+  bar added on top, rather than being taken as the whole window's height.
+
 ## [1.4.1] - 2026-09-08
 
 ### Changed
@@ -155,6 +171,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.4.2]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.2
 [1.4.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.1
 [1.4.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.0
 [1.3.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.3.1

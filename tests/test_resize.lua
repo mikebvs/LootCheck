@@ -15,7 +15,10 @@ section("the window is resizable and has a grip")
 LootCheck.Window:Show("audit")
 local frame = LootCheckWindow
 assert(frame.grip, "there is a resize grip")
-assert(frame.grip._scripts.OnMouseDown and frame.grip._scripts.OnMouseUp, "the grip drives sizing")
+-- Sizing must begin on a drag, not a click: on mouse-down a plain click put
+-- the frame into sizing mode and the client snapped it to its minimum
+assert(frame.grip._scripts.OnDragStart and frame.grip._scripts.OnDragStop, "the grip sizes on drag")
+assert(not frame.grip._scripts.OnMouseDown, "clicking the grip alone must not start sizing")
 assert(frame._scripts.OnSizeChanged, "the window reacts to being resized")
 
 section("the floor is whatever the most demanding page needs")
@@ -37,7 +40,7 @@ assert(newW == 900, "resized width, got " .. newW)
 assert(newH == 700 - 44, "content height is the window minus the title bar, got " .. newH)
 
 -- The grip stores it on release
-frame.grip._scripts.OnMouseUp(frame.grip)
+frame.grip._scripts.OnDragStop(frame.grip)
 assert(LootCheckDB.windowSize.width == 900, "one shared size was stored, not one per page")
 
 Window:Hide()
@@ -61,6 +64,19 @@ Window:Show("home")
 assert(select(1, Window:ContentSize()) == 1100, "the largest old size became the shared one")
 assert(LootCheckDB.windowSize.width == 1100, "and was rewritten in the new shape")
 assert(LootCheckDB.windowSize.audit == nil, "the per-page entries are gone")
+
+section("the frame is never left below the bounds sizing will enforce")
+-- A frame smaller than its own minimum is snapped up by the client the moment
+-- sizing begins, which reads as the window lurching wider on the first click
+Window:Show("audit")
+local floorMinW, floorMinH = Window:MinimumSize()
+Window:Resize(floorMinW - 300, floorMinH - 200)
+local heldW, heldH = Window:ContentSize()
+assert(heldW >= floorMinW, "width never goes below the floor, got " .. heldW)
+assert(heldH + 44 >= floorMinH, "nor height, got " .. (heldH + 44))
+
+Window:ApplyBounds()
+assert(select(1, Window:ContentSize()) >= floorMinW, "and bounds keep it there")
 
 section("sizes are clamped, so a saved one cannot outgrow the screen")
 UIParent:SetSize(1200, 800)
