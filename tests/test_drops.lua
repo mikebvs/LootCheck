@@ -232,32 +232,32 @@ local EPIC = "|cffa335ee|Hitem:30627::::::::70:::::|h[Tsunami Talisman]|h|r"
 local BLUE = "|cff0070dd|Hitem:28040::::::::70:::::|h[Blue Thing]|h|r"
 local GREEN = "|cff1eff00|Hitem:22463::::::::70:::::|h[Green Thing]|h|r"
 
-local link, who, count = Drops:ParseLootMessage("Casstronaut receives loot: " .. EPIC .. ".")
-assert(link == EPIC and who == "Casstronaut" and count == 1, "someone else, single")
-link, who, count = Drops:ParseLootMessage("Casstronaut receives loot: " .. EPIC .. "x3.")
-assert(link == EPIC and who == "Casstronaut" and count == 3, "someone else, stack of " .. tostring(count))
+local link, who, count = Drops:ParseLootMessage("John receives loot: " .. EPIC .. ".")
+assert(link == EPIC and who == "John" and count == 1, "someone else, single")
+link, who, count = Drops:ParseLootMessage("John receives loot: " .. EPIC .. "x3.")
+assert(link == EPIC and who == "John" and count == 3, "someone else, stack of " .. tostring(count))
 link, who, count = Drops:ParseLootMessage("You receive loot: " .. EPIC .. ".")
-assert(link == EPIC and who == "Drick" and count == 1, "yourself, single: " .. tostring(who))
+assert(link == EPIC and who == "Steven" and count == 1, "yourself, single: " .. tostring(who))
 link, who, count = Drops:ParseLootMessage("You receive loot: " .. EPIC .. "x2.")
-assert(link == EPIC and who == "Drick" and count == 2, "yourself, stack")
-assert(not Drops:ParseLootMessage("Casstronaut says hello"), "unrelated chat is not loot")
+assert(link == EPIC and who == "Steven" and count == 2, "yourself, stack")
+assert(not Drops:ParseLootMessage("John says hello"), "unrelated chat is not loot")
 assert(Drops:QualityFromLink(EPIC) == 4 and Drops:QualityFromLink(BLUE) == 3, "quality comes off the link colour")
 
 section("chat receipts are only recorded in a raid, and only rare and up")
 reset()
 SetTestGroup({})
 SetTestInstance(nil)
-FireEvent("CHAT_MSG_LOOT", "Casstronaut receives loot: " .. EPIC .. ".")
+FireEvent("CHAT_MSG_LOOT", "John receives loot: " .. EPIC .. ".")
 assert(#LootCheckDB.drops == 0, "nothing recorded outside a raid")
 
 SetTestInstance("raid")
-FireEvent("CHAT_MSG_LOOT", "Casstronaut receives loot: " .. GREEN .. ".")
+FireEvent("CHAT_MSG_LOOT", "John receives loot: " .. GREEN .. ".")
 assert(#LootCheckDB.drops == 0, "greens are ignored")
 
-FireEvent("CHAT_MSG_LOOT", "Casstronaut receives loot: " .. EPIC .. ".")
+FireEvent("CHAT_MSG_LOOT", "John receives loot: " .. EPIC .. ".")
 assert(#LootCheckDB.drops == 1, "the epic was recorded")
 local chatDrop = LootCheckDB.drops[1]
-assert(chatDrop.via == "chat" and chatDrop.lootedBy == "Casstronaut", "recorded as a chat receipt")
+assert(chatDrop.via == "chat" and chatDrop.lootedBy == "John", "recorded as a chat receipt")
 assert(chatDrop.itemID == 30627 and chatDrop.quality == 4, "item and quality read off the link")
 
 section("a receipt for an item already seen on the corpse fills the looter in")
@@ -272,15 +272,15 @@ FireEvent("LOOT_OPENED")
 assert(#LootCheckDB.drops == 1 and LootCheckDB.drops[1].via == "loot", "seen on the corpse first")
 assert(not LootCheckDB.drops[1].lootedBy, "nobody has picked it up yet")
 
-FireEvent("CHAT_MSG_LOOT", "Casstronaut receives loot: " .. EPIC .. ".")
+FireEvent("CHAT_MSG_LOOT", "John receives loot: " .. EPIC .. ".")
 assert(#LootCheckDB.drops == 1, "the receipt did not add a second row, got " .. #LootCheckDB.drops)
-assert(LootCheckDB.drops[1].lootedBy == "Casstronaut", "the looter was filled in")
+assert(LootCheckDB.drops[1].lootedBy == "John", "the looter was filled in")
 assert(LootCheckDB.drops[1].source == "Prince Malchezaar", "the corpse it came from is kept")
 
 -- a second receipt for the same item has nothing left to attach to, so it stands alone
-FireEvent("CHAT_MSG_LOOT", "Pary receives loot: " .. EPIC .. ".")
+FireEvent("CHAT_MSG_LOOT", "Mary receives loot: " .. EPIC .. ".")
 assert(#LootCheckDB.drops == 2, "a second receipt is its own row")
-assert(LootCheckDB.drops[2].lootedBy == "Pary" and LootCheckDB.drops[2].via == "chat", "recorded from chat")
+assert(LootCheckDB.drops[2].lootedBy == "Mary" and LootCheckDB.drops[2].via == "chat", "recorded from chat")
 
 section("who looted it is not who it was assigned to")
 reset()
@@ -303,17 +303,17 @@ local dropAt = Drops:WeekStart() + 3600
 -- the master looter's bags were full, so a council member holds it
 Drops:Record({
     key = "held", t = dropAt, itemID = wantedID, itemName = "Held item", quality = 4,
-    lootedBy = "Casstronaut", lootedNorm = "casstronaut", lootedAt = dropAt,
+    lootedBy = "John", lootedNorm = "john", lootedAt = dropAt,
 })
 local held = Drops:List()[1]
-assert(held.lootedBy == "Casstronaut", "the holder is listed")
+assert(held.lootedBy == "John", "the holder is listed")
 assert(not held.award, "and it is not assigned to anyone yet")
 
 -- later that night it is assigned to someone else entirely in Gargul
 LootCheck.Awards:ApplyMark(winner, wantedID, "Held item", nil, false, dropAt + 7200)
 LootCheck.Data:Invalidate()
 held = Drops:List()[1]
-assert(held.lootedBy == "Casstronaut", "the holder is unchanged")
+assert(held.lootedBy == "John", "the holder is unchanged")
 assert(held.award and LootCheck:NormalizeName(held.award.awardedTo) == winner,
     "the assignment is picked up separately from who looted it")
 LootCheckDB.manualAwards = {}
@@ -323,7 +323,7 @@ section("the panel shows both names in their own columns")
 reset()
 Drops:Record({
     key = "cols", t = Drops:WeekStart() + 600, itemID = 30627, itemName = "Two column item", quality = 4,
-    lootedBy = "Casstronaut", lootedNorm = "casstronaut", lootedAt = Drops:WeekStart() + 600,
+    lootedBy = "John", lootedNorm = "john", lootedAt = Drops:WeekStart() + 600,
 })
 LootCheck.Graph:Open()
 local shownRow
@@ -331,7 +331,7 @@ for _, row in ipairs(Drops._rows) do
     if row:IsShown() then shownRow = row break end
 end
 assert(shownRow, "a row is on screen")
-assert((shownRow.looted:GetText() or ""):find("Casstronaut", 1, true), "the looter column: " .. tostring(shownRow.looted:GetText()))
+assert((shownRow.looted:GetText() or ""):find("John", 1, true), "the looter column: " .. tostring(shownRow.looted:GetText()))
 assert((shownRow.status:GetText() or ""):find("want", 1, true) or (shownRow.status:GetText() or ""):find("-", 1, true),
     "the assigned column is separate: " .. tostring(shownRow.status:GetText()))
 assert(LootCheckGraphFrameDrops.head.looted:GetText() == "Looted by", "the column is labelled")

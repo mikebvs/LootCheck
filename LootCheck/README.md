@@ -65,7 +65,7 @@ The players ticked in **Send to...** are also your share list. Tick *Also share 
 
 - **It takes both sides.** You only accept an edit from someone you have ticked, with sharing on, who is in your group. Anything else is ignored.
 - **Received edits run your own code.** They go through the same `Awards:Apply*` and `Wishlist:Apply*` functions your slash commands use, so behaviour is identical.
-- **Everything is visible.** Each applied edit prints a line in chat and appears on the Audit page tagged `(from Drick)`.
+- **Everything is visible.** Each applied edit prints a line in chat and appears on the Audit page tagged `(from Steven)`.
 - **Wishlist edits are dataset-scoped.** Every import carries a share id that travels with the data, so `addwlitem` only lands on players working from that same dataset. Received marks are not scoped, since an award is a fact about the player.
 - **Edits are never relayed.** An edit you receive is not passed on again, so nothing loops. With a council who all tick each other, every edit reaches everyone directly.
 

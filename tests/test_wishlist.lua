@@ -105,7 +105,7 @@ assert(#LootCheck.Data:WishlistIndex()[30627]["newguy"].entries == 1, "no duplic
 section("addwlitem: #prio + os flags, realm suffix, class picked up from the group")
 SetTestGroup({ "Newguy" })
 SetTestClasses({ Newguy = "ROGUE" })
-out = capture(function() SlashCmdList.LOOTCHECK("addwlitem Newguy-Nightslayer Tsunami Talisman #3 os") end)
+out = capture(function() SlashCmdList.LOOTCHECK("addwlitem Newguy-Testrealm Tsunami Talisman #3 os") end)
 assert(out:find("as prio 3 (OS)", 1, true), out)
 p = LootCheck.Data:WishlistIndex()[30627]["newguy"]
 assert(#p.entries == 2, "MS + OS entries expected")

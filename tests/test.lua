@@ -163,8 +163,8 @@ raidersOnly = true
 SetTestGroup({ wl[received[1]].name })
 SimulateTooltip(GameTooltip, "x", link(testItem), {})
 DumpTooltip(GameTooltip)
-local drickWished = wl["drick"] ~= nil
-assert(GameTooltip:NumLines() == (drickWished and 6 or 5), "only group members expected, got " .. GameTooltip:NumLines())
+local playerWished = wl[LootCheck:NormalizeName(UnitName("player"))] ~= nil
+assert(GameTooltip:NumLines() == (playerWished and 6 or 5), "only group members expected, got " .. GameTooltip:NumLines())
 local greyFound = false
 for i = 5, GameTooltip:NumLines() do
     local t = _G["GameTooltipTextLeft" .. i]:GetText()
@@ -230,25 +230,38 @@ assert(LootCheck.Tooltip.reportedError, "error should be reported once")
 LootCheck.Data.WishlistIndex = savedFn
 GargulOrig[testItem] = nil
 
-section("fallback greying when TMBExport is absent (Strateia got 29764)")
+section("fallback greying when TMBExport is absent (award discovered from real data)")
 local savedTMB = TMBExportDB
 TMBExportDB = nil
-GargulOrig[29764] = {
+-- With no wishlist data the tooltip is greyed by scanning Gargul's own lines
+-- against its award history, so this needs a real award to work from
+local fbItem, fbName
+for _, loot in pairs(GargulDB.AwardHistory) do
+    local id = tonumber(loot.itemID) or tonumber((loot.itemLink or ""):match("item:(%d+)") or "")
+    local who = (loot.awardedTo or ""):match("^([^%-]+)")
+    if id and who and who ~= "" and not loot.OS then
+        fbItem, fbName = id, who
+        break
+    end
+end
+assert(fbItem, "the award history has a non-OS award to grey")
+
+GargulOrig[fbItem] = {
     "\n|c00FFFFFFTMB Wish List|r",
-    "|c00C79C6E    Strateia[1]|r",
+    "|c00C79C6E    " .. fbName .. "[1]|r",
     "|c00F58CBA    Nobodyhere[2]|r",
-    "|c00FFFFFF    Strateiax[3]|r",
+    "|c00FFFFFF    " .. fbName .. "x[3]|r",
     "\n|c00efb8cdAwarded To|r",
-    "    Strateia | Given: yes",
+    "    " .. fbName .. " | Given: yes",
 }
-SimulateTooltip(GameTooltip, "Pauldrons", link(29764, "Pauldrons of the Fallen Defender"), {})
+SimulateTooltip(GameTooltip, "Item", link(fbItem, "Awarded Item"), {})
 DumpTooltip(GameTooltip)
-assert(isGrey(GameTooltipTextLeft3), "Strateia should be greyed by the fallback scanner")
+assert(isGrey(GameTooltipTextLeft3), fbName .. " should be greyed by the fallback scanner")
 assert(not isGrey(GameTooltipTextLeft4), "Nobodyhere untouched")
-assert(not isGrey(GameTooltipTextLeft5), "Strateiax (different name) untouched")
+assert(not isGrey(GameTooltipTextLeft5), "a longer name starting the same way is untouched")
 assert(not isGrey(GameTooltipTextLeft7), "'Awarded To' line untouched")
 TMBExportDB = savedTMB
-GargulOrig[29764] = nil
+GargulOrig[fbItem] = nil
 
 section("greyOSAwards toggle on an OS-only award (pair discovered from real data)")
 local flags = {}
@@ -366,10 +379,23 @@ local recentTotal = 0
 for _, r in ipairs(recent) do recentTotal = recentTotal + r.count end
 print("last-30-day total:", recentTotal)
 assert(recentTotal <= addonTotal, "30-day total cannot exceed all-time")
-SetTestGroup({ "Strateia-Nightslayer", "Pary", "Casstronaut" })
+-- Build the group from raiders who really are in the wishlist data, so the
+-- filter has something to keep and the assertion is not vacuous
+local roster = LootCheck.Data:Roster()
+local groupNames, expected = {}, {}
+for norm, entry in pairs(roster) do
+    if #groupNames >= 3 then break end
+    tinsert(groupNames, entry.displayName)
+    expected[norm] = true
+end
+expected[LootCheck:NormalizeName(UnitName("player"))] = true -- you are in your own group
+assert(#groupNames == 3, "the wishlist data has at least three raiders")
+
+SetTestGroup(groupNames)
 local grp = LootCheck.Data:WishlistAwardCounts({ groupOnly = true })
+assert(#grp > 0, "the group-only filter kept the raiders who are in the group")
 for _, r in ipairs(grp) do
-    assert(r.normName == "strateia" or r.normName == "pary" or r.normName == "casstronaut" or r.normName == "drick", "unexpected row " .. r.normName)
+    assert(expected[r.normName], "unexpected row " .. r.normName)
 end
 
 section("slash commands / graph window")

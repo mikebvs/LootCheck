@@ -26,27 +26,27 @@ local function lastEdit()
 end
 
 section("setup: a council of two, sharing on")
-SetTestGroup({ "Casstronaut", "Pary-Nightslayer" })
-SetTestClasses({ Casstronaut = "SHAMAN", ["Pary-Nightslayer"] = "WARLOCK" })
+SetTestGroup({ "John", "Mary-Testrealm" })
+SetTestClasses({ John = "SHAMAN", ["Mary-Testrealm"] = "WARLOCK" })
 LootCheck.Comm:Init()
 for _, imp in ipairs(LootCheck.Imports:List()) do LootCheck.Imports:Delete(imp.id) end
 LootCheck.Imports:Add("Council", csv({
-    "Casstronaut,Shaman,1,Tsunami Talisman,30627,0",
-    "Pary,Warlock,1,Leggings of the Vanquished Hero,30247,0",
+    "John,Shaman,1,Tsunami Talisman,30627,0",
+    "Mary,Warlock,1,Leggings of the Vanquished Hero,30247,0",
 }))
 local raid = LootCheck.Imports:Active()
 assert(raid.shareId and raid.shareId ~= "", "an import carries a share id")
-LootCheck.Comm:ShareList()["casstronaut"] = true
+LootCheck.Comm:ShareList()["john"] = true
 LootCheck.db.settings.shareEdits = true
 local out = capture(function() LootCheck.Comm:AnnounceSharing() end)
-assert(out:find("shared with Casstronaut", 1, true), out)
+assert(out:find("shared with John", 1, true), out)
 
 section("my edits go out to the ticked players only")
 FakeComm:Reset()
-SlashCmdList.LOOTCHECK("giveitem Casstronaut 30627")
+SlashCmdList.LOOTCHECK("giveitem John 30627")
 local edit = lastEdit()
 assert(edit, "an edit message was sent")
-assert(edit.distribution == "WHISPER" and edit.target == "Casstronaut", "whispered to the ticked player only")
+assert(edit.distribution == "WHISPER" and edit.target == "John", "whispered to the ticked player only")
 assert(edit.text:find("^E|1|mark|"), "mark message: " .. edit.text)
 assert(#FakeComm.sent == 1, "not sent to the unticked player")
 local markMessage = edit.text
@@ -62,28 +62,28 @@ FakeComm:Reset()
 SlashCmdList.LOOTCHECK("removewlitem Newname 30247")
 local wlremoveMessage = lastEdit().text
 FakeComm:Reset()
-SlashCmdList.LOOTCHECK("removeitem Casstronaut 30627")
+SlashCmdList.LOOTCHECK("removeitem John 30627")
 local unreceiveMessage = lastEdit().text
 assert(unreceiveMessage:find("^E|1|unreceive|"), unreceiveMessage)
 
 section("nothing goes out while sharing is off")
 LootCheck.db.settings.shareEdits = false
 FakeComm:Reset()
-SlashCmdList.LOOTCHECK("giveitem Casstronaut 30627")
+SlashCmdList.LOOTCHECK("giveitem John 30627")
 assert(not lastEdit(), "no edit message while sharing is off")
-SlashCmdList.LOOTCHECK("removeitem Casstronaut 30627")
+SlashCmdList.LOOTCHECK("removeitem John 30627")
 
 section("an incoming edit is refused while sharing is off, with one hint")
-out = capture(function() FakeComm:Deliver("LootCheck", markMessage, "WHISPER", "Casstronaut") end)
+out = capture(function() FakeComm:Deliver("LootCheck", markMessage, "WHISPER", "John") end)
 assert(out:find("To accept them", 1, true), out)
-assert(not LootCheck.Awards:AlreadyReceived("casstronaut", 30627, false), "nothing was applied")
+assert(not LootCheck.Awards:AlreadyReceived("john", 30627, false), "nothing was applied")
 
 section("with sharing on, an edit from a ticked player is applied")
 LootCheck.db.settings.shareEdits = true
 LootCheckDB.auditLog = {} -- so the entry checked below is unambiguously the shared one
-out = capture(function() FakeComm:Deliver("LootCheck", markMessage, "WHISPER", "Casstronaut") end)
-assert(out:find("Casstronaut marked Tsunami Talisman as received by Casstronaut", 1, true), out)
-local mark = LootCheck.Awards:AlreadyReceived("casstronaut", 30627, false)
+out = capture(function() FakeComm:Deliver("LootCheck", markMessage, "WHISPER", "John") end)
+assert(out:find("John marked Tsunami Talisman as received by John", 1, true), out)
+local mark = LootCheck.Awards:AlreadyReceived("john", 30627, false)
 assert(mark and mark.manual, "the mark exists locally")
 
 -- and it is attributed in the audit log (the mark and its log line share a timestamp,
@@ -92,47 +92,47 @@ local logged
 for _, e in ipairs(LootCheck.Audit:Entries({})) do
     if e.kind == "command" and e.cmd == "giveitem" then logged = e break end
 end
-assert(logged and logged.from == "Casstronaut", "audit records who shared it")
+assert(logged and logged.from == "John", "audit records who shared it")
 
 LootCheck.Audit:Open()
 local shownFrom
 for _, row in ipairs(LootCheck.Audit._rows) do
-    if row:IsShown() and (row.text:GetText() or ""):find("(from Casstronaut)", 1, true) then shownFrom = true end
+    if row:IsShown() and (row.text:GetText() or ""):find("(from John)", 1, true) then shownFrom = true end
 end
 assert(shownFrom, "the audit page shows the sharer")
 LootCheck.Window:Hide()
 
 section("applying an incoming edit does not relay it again")
 FakeComm:Reset()
-FakeComm:Deliver("LootCheck", unreceiveMessage, "WHISPER", "Casstronaut")
-assert(not LootCheck.Awards:AlreadyReceived("casstronaut", 30627, false), "the mark was removed")
+FakeComm:Deliver("LootCheck", unreceiveMessage, "WHISPER", "John")
+assert(not LootCheck.Awards:AlreadyReceived("john", 30627, false), "the mark was removed")
 assert(not lastEdit(), "a received edit is never passed on")
 
 section("edits from players you have not ticked, or outside the group, are ignored")
-FakeComm:Deliver("LootCheck", markMessage, "WHISPER", "Pary-Nightslayer")
-assert(not LootCheck.Awards:AlreadyReceived("casstronaut", 30627, false), "unticked player ignored")
+FakeComm:Deliver("LootCheck", markMessage, "WHISPER", "Mary-Testrealm")
+assert(not LootCheck.Awards:AlreadyReceived("john", 30627, false), "unticked player ignored")
 FakeComm:Deliver("LootCheck", markMessage, "WHISPER", "Randomstranger")
-assert(not LootCheck.Awards:AlreadyReceived("casstronaut", 30627, false), "stranger ignored")
-LootCheck.Comm:ShareList()["pary"] = true
-FakeComm:Deliver("LootCheck", markMessage, "WHISPER", "Pary-Nightslayer")
-assert(LootCheck.Awards:AlreadyReceived("casstronaut", 30627, false), "ticking them lets their edits through")
-FakeComm:Deliver("LootCheck", unreceiveMessage, "WHISPER", "Pary-Nightslayer")
-LootCheck.Comm:ShareList()["pary"] = nil
+assert(not LootCheck.Awards:AlreadyReceived("john", 30627, false), "stranger ignored")
+LootCheck.Comm:ShareList()["mary"] = true
+FakeComm:Deliver("LootCheck", markMessage, "WHISPER", "Mary-Testrealm")
+assert(LootCheck.Awards:AlreadyReceived("john", 30627, false), "ticking them lets their edits through")
+FakeComm:Deliver("LootCheck", unreceiveMessage, "WHISPER", "Mary-Testrealm")
+LootCheck.Comm:ShareList()["mary"] = nil
 
 section("wishlist edits only apply to the same dataset")
 local index = LootCheck.Data:WishlistIndex()
 assert(not (index[30247] and index[30247]["newname"]), "not on the list to start with")
-FakeComm:Deliver("LootCheck", wladdMessage, "WHISPER", "Casstronaut")
+FakeComm:Deliver("LootCheck", wladdMessage, "WHISPER", "John")
 index = LootCheck.Data:WishlistIndex()
 assert(index[30247] and index[30247]["newname"], "applied to the matching dataset")
-FakeComm:Deliver("LootCheck", wlremoveMessage, "WHISPER", "Casstronaut")
+FakeComm:Deliver("LootCheck", wlremoveMessage, "WHISPER", "John")
 index = LootCheck.Data:WishlistIndex()
 assert(not (index[30247] and index[30247]["newname"]), "removal applied too")
 
 -- switch to a different raid: the same edit must not land
-LootCheck.Imports:Add("Another raid", csv({ "Casstronaut,Shaman,1,Tsunami Talisman,30627,0" }))
+LootCheck.Imports:Add("Another raid", csv({ "John,Shaman,1,Tsunami Talisman,30627,0" }))
 LootCheck.Comm.warnedAboutDataset = nil
-out = capture(function() FakeComm:Deliver("LootCheck", wladdMessage, "WHISPER", "Casstronaut") end)
+out = capture(function() FakeComm:Deliver("LootCheck", wladdMessage, "WHISPER", "John") end)
 assert(out:find("wishlist you are not on right now", 1, true), out)
 index = LootCheck.Data:WishlistIndex()
 assert(not (index[30247] and index[30247]["newname"]), "nothing applied to the wrong dataset")
@@ -140,7 +140,7 @@ LootCheck.Imports:SetActive(raid.id, true)
 
 section("a dataset sent on carries its share id, so edits follow it")
 FakeComm:Reset()
-LootCheck.Comm:SendDataset({ "Casstronaut" })
+LootCheck.Comm:SendDataset({ "John" })
 local payload = FakeComm:Last("D|")
 local text = LootCheck.Comm:Decode(payload.text:sub(5))
 assert(text:find("share=" .. raid.shareId, 1, true), "the export header carries the share id")
@@ -155,7 +155,7 @@ assert(page.shareEdits:IsShown() and page.shareEdits:GetChecked(), "the switch s
 assert(page.sendStatus:GetText():find("sharing edits", 1, true), page.sendStatus:GetText())
 local shown = {}
 for _, row in ipairs(page.sendRows) do if row:IsShown() then tinsert(shown, row) end end
-assert(shown[1]:GetChecked(), "Casstronaut is still ticked from before")
+assert(shown[1]:GetChecked(), "John is still ticked from before")
 out = capture(function()
     page.shareEdits:SetChecked(false)
     click(page.shareEdits)

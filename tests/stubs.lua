@@ -29,7 +29,7 @@ RAID_CLASS_COLORS = {
 local groupMembers = {}
 function SetTestGroup(list) groupMembers = list or {} end
 function UnitName(unit)
-    if unit == "player" then return "Drick" end
+    if unit == "player" then return "Steven" end
     if unit == "target" then return LootWindowSource and LootWindowSource() or nil end
     local idx = tonumber(unit:match("^raid(%d+)$") or unit:match("^party(%d+)$"))
     return idx and groupMembers[idx] or nil
