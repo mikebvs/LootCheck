@@ -552,24 +552,9 @@ local function MenuItem(index)
 end
 
 local function BuildPicker(page)
-    local button = CreateFrame("Button", "LootCheckImportsFrameDropdown", page, "UIPanelButtonTemplate")
-    button:SetSize(MENU_WIDTH, 22)
+    -- Same dark field as the Audit page's range dropdown, so the two match
+    local button = LC.Window:CreateDropdownButton(page, "LootCheckImportsFrameDropdown", MENU_WIDTH)
     button:SetText("No imports yet")
-
-    local fs = button.GetFontString and button:GetFontString()
-    if fs then
-        fs:ClearAllPoints()
-        fs:SetPoint("LEFT", 8, 0)
-        fs:SetPoint("RIGHT", -18, 0)
-        fs:SetJustifyH("LEFT")
-        if fs.SetWordWrap then fs:SetWordWrap(false) end
-    end
-
-    local arrow = button:CreateTexture(nil, "OVERLAY")
-    arrow:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
-    arrow:SetSize(16, 16)
-    arrow:SetPoint("RIGHT", -3, -1)
-
     button:SetScript("OnClick", function() Imports:ToggleMenu() end)
 
     -- Clicking anywhere else closes the menu

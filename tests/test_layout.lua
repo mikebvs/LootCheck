@@ -67,6 +67,12 @@ bounded(LootCheckAuditFrame.wishlistOnlyLabel, "audit: hide-non-wishlist label")
 assert(LootCheck.Audit._rows[1].time._width, "audit time column has no width")
 
 section("list and text areas sit on a dark inset")
+-- Dropdowns are dark fields, not UIPanelButtonTemplate action buttons: they
+-- must not look like "< Back"
+hasInsetBackdrop(LootCheckAuditFrameRange, "audit range dropdown")
+hasInsetBackdrop(LootCheckImportsFrameDropdown, "wishlist data raid dropdown")
+hasInsetBackdrop(LootCheckAuditFrameRangeMenu, "audit range menu")
+
 hasInsetBackdrop(LootCheckImportsFrameInset, "wishlist data paste box")
 hasInsetBackdrop(LootCheckGraphFrameInset, "graph list")
 hasInsetBackdrop(LootCheckAuditFrameInset, "audit list")

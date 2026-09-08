@@ -209,6 +209,48 @@ function Window:Text(parent, style, width)
     return fs
 end
 
+--- The button half of a dropdown: a dark panel with a left-aligned label and
+--- an arrow. Deliberately not UIPanelButtonTemplate, so it reads as a field to
+--- pick from rather than as an action button like "< Back", and so it matches
+--- the menu that drops out of it.
+--- Shared by Window:CreateDropdown and the Wishlist Data raid picker.
+function Window:CreateDropdownButton(parent, name, width)
+    local template = BackdropTemplateMixin and "BackdropTemplate" or nil
+    local button = CreateFrame("Button", name, parent, template)
+    button:SetSize(width or 150, 22)
+
+    if button.SetBackdrop then
+        button:SetBackdrop({
+            bgFile = "Interface\\Tooltips\\UI-Tooltip-Background",
+            edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+            tile = true, tileSize = 16, edgeSize = 12,
+            insets = { left = 3, right = 3, top = 3, bottom = 3 },
+        })
+        if button.SetBackdropColor then button:SetBackdropColor(0.04, 0.04, 0.04, 0.96) end
+        if button.SetBackdropBorderColor then button:SetBackdropBorderColor(0.4, 0.4, 0.4, 0.9) end
+    end
+
+    local highlight = button:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetPoint("TOPLEFT", 3, -3)
+    highlight:SetPoint("BOTTOMRIGHT", -3, 3)
+    highlight:SetColorTexture(1, 1, 1, 0.08)
+
+    local arrow = button:CreateTexture(nil, "OVERLAY")
+    arrow:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
+    arrow:SetSize(16, 16)
+    arrow:SetPoint("RIGHT", -4, -1)
+
+    -- Its own label: without a template there is no font string to borrow
+    button.label = self:Text(button, "GameFontHighlightSmall")
+    button.label:SetPoint("LEFT", 8, 0)
+    button.label:SetPoint("RIGHT", arrow, "LEFT", -2, 0)
+
+    function button:SetText(text) self.label:SetText(text) end
+    function button:GetText() return self.label:GetText() end
+
+    return button
+end
+
 --- A dropdown built from plain frames.
 ---
 --- Blizzard's UIDropDownMenu keeps global state that the secure UI reads, so
@@ -227,23 +269,7 @@ function Window:CreateDropdown(parent, name, opts)
     local ITEM_HEIGHT = 18
     local width = opts.width or 150
 
-    local button = CreateFrame("Button", name, parent, "UIPanelButtonTemplate")
-    button:SetSize(width, 22)
-
-    -- Left-align the label and leave room for the arrow
-    local fs = button.GetFontString and button:GetFontString()
-    if fs then
-        fs:ClearAllPoints()
-        fs:SetPoint("LEFT", 8, 0)
-        fs:SetPoint("RIGHT", -18, 0)
-        fs:SetJustifyH("LEFT")
-        if fs.SetWordWrap then fs:SetWordWrap(false) end
-    end
-
-    local arrow = button:CreateTexture(nil, "OVERLAY")
-    arrow:SetTexture("Interface\\Buttons\\Arrow-Down-Up")
-    arrow:SetSize(16, 16)
-    arrow:SetPoint("RIGHT", -3, -1)
+    local button = self:CreateDropdownButton(parent, name, width)
 
     -- Clicking anywhere else closes the menu
     local catcher = CreateFrame("Button", nil, UIParent)
