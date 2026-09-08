@@ -38,7 +38,7 @@ local MAX_TEXT = 400000 -- refuse absurd payloads rather than chew through memor
 local AceComm = LibStub and LibStub("AceComm-3.0", true)
 local LibDeflate = LibStub and LibStub("LibDeflate", true)
 
-Comm.peers = {}  -- normName -> { version, at } for players who answered a ping
+Comm.peers = {}  -- normName -> { version, at, source, protocol, incompatible } for players who answered a ping
 Comm.queue = {}  -- datasets waiting for this player to choose what to do
 Comm.ready = false
 
@@ -119,6 +119,66 @@ function Comm:GroupRoster()
     return list
 end
 
+--- Guild members who are online, except you: { { name, norm, class }, ... }.
+--- Offline members cannot answer a ping, so they are left out.
+function Comm:GuildRoster()
+    local list, seen = {}, {}
+    if not (IsInGuild and IsInGuild()) then return list end
+
+    -- Ask the server to refresh the roster; the reply lands asynchronously, so
+    -- this call is for next time as much as for now
+    if C_GuildInfo and C_GuildInfo.GuildRoster then
+        pcall(C_GuildInfo.GuildRoster)
+    elseif GuildRoster then
+        pcall(GuildRoster)
+    end
+
+    local total = GetNumGuildMembers and GetNumGuildMembers() or 0
+    local me = MyName()
+
+    for i = 1, total do
+        local name, _, _, _, _, _, _, _, online, _, class = GetGuildRosterInfo(i)
+        local norm = LC:NormalizeName(name or "")
+
+        if online and norm ~= "" and norm ~= me and not seen[norm] then
+            seen[norm] = true
+            tinsert(list, { name = name, norm = norm, class = class })
+        end
+    end
+
+    table.sort(list, function(a, b) return tostring(a.name) < tostring(b.name) end)
+    return list
+end
+
+--- Everyone who could answer a ping: group and online guild, merged.
+--- `where` says which of the two (or "group+guild") each player came from.
+function Comm:PingableRoster()
+    local merged, order = {}, {}
+
+    local function add(member, where)
+        local existing = merged[member.norm]
+        if existing then
+            if not existing.where:find(where, 1, true) then
+                existing.where = existing.where .. "+" .. where
+            end
+            existing.class = existing.class or member.class
+            return
+        end
+        merged[member.norm] = {
+            name = member.name, norm = member.norm, class = member.class, where = where,
+        }
+        tinsert(order, member.norm)
+    end
+
+    for _, member in ipairs(self:GroupRoster()) do add(member, "group") end
+    for _, member in ipairs(self:GuildRoster()) do add(member, "guild") end
+
+    local list = {}
+    for _, norm in ipairs(order) do tinsert(list, merged[norm]) end
+    table.sort(list, function(a, b) return tostring(a.name) < tostring(b.name) end)
+    return list
+end
+
 function Comm:InGroup(norm)
     for _, member in ipairs(self:GroupRoster()) do
         if member.norm == norm then return true end
@@ -130,6 +190,37 @@ end
 function Comm:HasAddon(norm)
     local peer = self.peers[norm]
     return peer ~= nil, peer and peer.version or nil
+end
+
+--- Remember who answered a ping and what they are running.
+function Comm:RecordPeer(norm, version, theirProtocol)
+    self.peers[norm] = {
+        version = (version ~= nil and version ~= "" and version) or "?",
+        at = Now(),
+        protocol = theirProtocol,
+        -- They have the addon, they just cannot exchange data with this build
+        incompatible = (theirProtocol ~= PROTOCOL) or nil,
+    }
+
+    if LC.Imports and LC.Imports.RefreshSendList then LC.Imports:RefreshSendList() end
+    if LC.Council and LC.Council.RefreshIfShown then LC.Council:RefreshIfShown() end
+end
+
+--- Compare two version strings numerically: -1, 0 or 1.
+--- "1.0.10" is newer than "1.0.9", which a plain string compare gets wrong.
+function Comm:CompareVersions(a, b)
+    local function parts(v)
+        local out = {}
+        for n in tostring(v or ""):gmatch("%d+") do tinsert(out, tonumber(n)) end
+        return out
+    end
+
+    local left, right = parts(a), parts(b)
+    for i = 1, math.max(#left, #right) do
+        local x, y = left[i] or 0, right[i] or 0
+        if x ~= y then return x < y and -1 or 1 end
+    end
+    return 0
 end
 
 ------------------------------------------------------------------------------
@@ -150,6 +241,24 @@ function Comm:Ping()
 
     self:SendCommMessage(PREFIX, ("P|%d"):format(PROTOCOL), channel, nil, "ALERT")
     return true
+end
+
+--- Ask the guild the same question. One message reaches every online member.
+function Comm:PingGuild()
+    if not self.ready then return false end
+    if not (IsInGuild and IsInGuild()) then return false end
+
+    self:SendCommMessage(PREFIX, ("P|%d"):format(PROTOCOL), "GUILD", nil, "ALERT")
+    return true
+end
+
+--- Ping the group and the guild. Returns how many channels were asked, so the
+--- caller can say "you are not in a group or a guild" rather than fail silently.
+function Comm:PingAll()
+    local asked = 0
+    if self:Ping() then asked = asked + 1 end
+    if self:PingGuild() then asked = asked + 1 end
+    return asked
 end
 
 --- Send the active dataset to the named players (one whisper stream each)
@@ -207,7 +316,12 @@ function Comm:OnCommReceived(prefix, message, distribution, sender)
     local kind, protocol, body = message:match("^(%a)|(%d+)|?(.*)$")
     if not kind then return end
 
-    if tonumber(protocol) ~= PROTOCOL then
+    local theirProtocol = tonumber(protocol)
+
+    -- Pings and their replies still cross protocol versions on purpose: seeing
+    -- who is on an incompatible one is exactly what the Loot Council page is
+    -- for. Everything that moves data needs a protocol we actually understand.
+    if theirProtocol ~= PROTOCOL and kind ~= "P" and kind ~= "R" then
         if not self.warnedAboutProtocol then
             self.warnedAboutProtocol = true
             LC:Print(("%s is running a different LootCheck sync version, so data cannot be exchanged."):format(LC:Capitalize(norm)))
@@ -219,10 +333,7 @@ function Comm:OnCommReceived(prefix, message, distribution, sender)
         self:SendCommMessage(PREFIX, ("R|%d|%s"):format(PROTOCOL, tostring(LC.version)), "WHISPER", sender, "ALERT")
 
     elseif kind == "R" then
-        self.peers[norm] = { version = body ~= "" and body or "?", at = Now() }
-        if LC.Imports and LC.Imports.RefreshSendList then
-            LC.Imports:RefreshSendList()
-        end
+        self:RecordPeer(norm, body, theirProtocol)
 
     elseif kind == "D" then
         self:ReceiveDataset(norm, body)

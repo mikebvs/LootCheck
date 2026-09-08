@@ -155,6 +155,7 @@ local function BuildPage(page)
         { key = "graphButton", text = "Wishlist graph", width = 116, open = function() return LC.Graph end },
         { key = "importsButton", text = "Wishlist Data", width = 116, open = function() return LC.Imports end },
         { key = "auditButton", text = "Audit", width = 76, open = function() return LC.Audit end },
+        { key = "councilButton", text = "Loot Council", width = 110, open = function() return LC.Council end },
         { key = "helpButton", text = "Commands", width = 100, open = function() return LC.Help end },
     }
 

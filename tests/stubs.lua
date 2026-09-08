@@ -57,6 +57,24 @@ function UnitClass(unit)
 end
 function GetItemInfo() return nil end -- nothing is cached client-side in the test VM
 
+-- Guild simulation ---------------------------------------------------------
+-- SetTestGuild{ { name = "Mary-Testrealm", class = "WARLOCK", online = true }, ... }
+local guildMembers = {}
+function SetTestGuild(list) guildMembers = list or {} end
+function IsInGuild() return #guildMembers > 0 end
+function GetNumGuildMembers() return #guildMembers end
+function GuildRoster() end
+function GetGuildRosterInfo(index)
+    local member = guildMembers[index]
+    if not member then return nil end
+    -- name, rank, rankIndex, level, classDisplay, zone, note, officerNote, online, status, classFile
+    return member.name, "Member", 1, 70, member.class, "Karazhan", "", "",
+        member.online ~= false, nil, member.class
+end
+
+-- C_Timer.After: run the callback at once so tests do not have to wait
+C_Timer = { After = function(_, fn) if fn then fn() end end }
+
 -- Loot window simulation ---------------------------------------------------
 -- SetTestLoot{ guid = "Creature-1", source = "Prince Malchezaar", zone = "Karazhan",
 --              items = { { id = 30627, name = "Tsunami Talisman", quality = 4, count = 1 }, ... } }

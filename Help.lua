@@ -22,17 +22,19 @@ local MARGIN = 22
 local CONTENT_WIDTH = WIDTH - MARGIN * 2 - 40
 
 Help.COMMANDS = {
-    { cmd = "/lchelp", aliases = { "/lchelp config", "/lchelp options" },
+    { cmd = "/lchelp", aliases = { "/lch", "/lootcheck", "/lchelp config", "/lchelp options" },
       desc = "Open the LootCheck window on its home page: status, basic settings, and buttons to the wishlist graph, wishlist data, audit and this list. Every page lives in this one window; < Back returns home." },
     { cmd = "/lchelp help", aliases = { "/lchelp commands" },
       desc = "Open this list. \"/lchelp help chat\" prints it to the chat frame instead." },
-    { cmd = "/lchelp graph", args = "[days]",
+    { cmd = "/lchelp graph", args = "[days]", aliases = { "/lchg" },
       desc = "Open the wishlist award graph. With a number, only awards from the last that many days count towards the bars (0 = the whole phase). The number is remembered." },
+    { cmd = "/lchelp council", aliases = { "/lchc", "/lchelp members" },
+      desc = "Open the Loot Council page: who else is running LootCheck and which version, so you can see whether the council is on the same build. Opening it asks your group and every guild member who is online; replies arrive over a second or two, so use Check again if someone is missing. Anyone on an older version is flagged, and a check box also lists the players who were asked but did not answer." },
     { cmd = "/lchelp drops", args = "[clear]",
       desc = "Open the wishlist graph, whose right-hand column lists every rare and epic item that dropped in the raid this week, newest first, with who picked it up and who Gargul assigned it to. Those are separate columns on purpose: an item is often looted by whoever had bag space and only assigned later. Drops are read from the loot window and from loot messages in chat, which every client in the raid sees, so no addon-to-addon communication is needed. The arrows step back through earlier weeks; the list rolls over at the Tuesday raid reset. Hovering a drop shows its tooltip, so the wishlist is right there. \"clear\" forgets every recorded drop." },
     { cmd = "/lchelp grouponly",
       desc = "Toggle showing only raiders who are in your current group on the graph." },
-    { cmd = "/lchelp audit",
+    { cmd = "/lchelp audit", aliases = { "/lcha" },
       desc = "Open the Audit page: every item award in chronological order, newest first - Gargul awards including plain MS / OS roll wins, manual received marks, and your giveitem / removeitem / addwlitem / removewlitem commands. A check box hides awards whose item was not on the winner's wishlist." },
     { cmd = "/lchelp imports", aliases = { "/lchelp data", "/lchelp raids" },
       desc = "Open the Wishlist Data page: pick the active raid from the dropdown, paste a new That's My BIS CSV export as a named import, delete one, or Export the active dataset (manual edits included) as text another LootCheck user can paste into New import to sync with you." },

@@ -30,6 +30,7 @@ LootCheck never writes to Gargul's data. The only thing it touches in TMBExport 
 | `/lchelp graph 30` | Only count awards from the last 30 days (`0` = all time). Setting is remembered. |
 | `/lchelp grouponly` | Toggle showing only raiders currently in your group |
 | `/lchelp drops` | Open the graph page and its raid drops list (`/lchelp drops clear` forgets them) |
+| `/lchelp council` | Loot Council page: who is running LootCheck and on what version (`members` does the same) |
 | `/lchelp check <item link>` | Print wishlist + award data for one item (shift-click the item into chat) |
 | `/lchelp status` | Show what data LootCheck can see and whether the tooltip integration is active |
 | `/lchelp greyos` | Toggle whether names awarded via an **OS** roll are also greyed on tooltips (default: on) |
@@ -45,7 +46,14 @@ LootCheck never writes to Gargul's data. The only thing it touches in TMBExport 
 | `/lchelp wishlist <character>` | Show a character's wishlist as LootCheck sees it (received items greyed, manual edits tagged) |
 | `/lchelp overrides` | List manual wishlist edits; `/lchelp clearoverrides confirm` wipes them |
 
-`/lootcheck` works as an alias of `/lchelp`.
+`/lootcheck` works as an alias of `/lchelp`. Four shorthands jump straight to a page, and pass anything typed after them through, so `/lchg 30` is exactly `/lchelp graph 30`:
+
+| Shorthand | Same as |
+|---|---|
+| `/lch` | `/lchelp` (the menu) |
+| `/lchg` | `/lchelp graph` |
+| `/lcha` | `/lchelp audit` |
+| `/lchc` | `/lchelp council` |
 
 ## Wishlist Data (raid imports)
 
@@ -101,6 +109,16 @@ A row counts as a duplicate when that character already wants that item at the s
 - The character does not have to be in the TMB export (PUGs). If they are in your group their class colour is picked up automatically.
 - Edits are stored per raid in `LootCheckDB.overrides`, never inside the import itself, so they survive re-imports. `removewlitem` on an imported entry hides it; `addwlitem` on the same item puts the original imported entry back.
 - The tooltip, the graph and `/lchelp check` all use the edited wishlist.
+
+## Loot Council
+
+`/lchc` (or the **Loot Council** button) shows who else is running LootCheck and which version, so you can see whether the council is on the same build before a raid.
+
+- **Who gets asked.** Opening the page pings your group *and* your guild. A guild ping is one message that reaches every online member, so this costs nothing extra as the guild grows. Offline members cannot answer and are not listed.
+- **Replies take a moment.** They arrive over a second or two, which is why the list fills in after it opens and why there is a **Check again** button.
+- **Grading.** Versions are compared numerically, so `1.0.10` is correctly newer than `1.0.9`. Anyone behind your version is flagged in red.
+- **No reply is not the same as not installed.** Someone still loading, or whose reply is in flight, shows as *no reply*. Tick the box to list everyone who was asked.
+- **Incompatible builds still show up.** A ping and its reply deliberately cross protocol versions, so someone on a build that cannot exchange data with yours appears as *cannot sync* rather than vanishing.
 
 ## Raid drops
 

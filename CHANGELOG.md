@@ -3,6 +3,25 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] - 2026-09-08
+
+### Added
+
+- **Loot Council page** (`/lchc`, or the button on the home page): who else is
+  running LootCheck and which version, so you can check the council is on the
+  same build. Opening it pings your group and every online guild member;
+  anyone behind your version is flagged, and a check box also lists the players
+  who were asked but did not answer.
+- Shorthand slash commands: `/lch` (menu), `/lchg` (graph), `/lcha` (audit) and
+  `/lchc` (loot council). Arguments pass through, so `/lchg 30` works.
+
+### Changed
+
+- A ping and its reply now cross protocol versions, so someone running a build
+  that cannot exchange data with yours is visible on the Loot Council page as
+  "cannot sync" instead of being invisible. Everything that moves data still
+  requires a matching protocol.
+
 ## [1.0.2] - 2026-09-08
 
 No changes to how the addon behaves in game. Fixes the release pipeline.
@@ -53,6 +72,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.1.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.1.0
 [1.0.2]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.2
 [1.0.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.1
 [1.0.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.0

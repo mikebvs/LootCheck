@@ -49,7 +49,10 @@ for _, c in ipairs(LootCheck.Help.COMMANDS) do
     assert(keyword, "bad cmd string " .. c.cmd)
     documented[keyword] = true
     for _, alias in ipairs(c.aliases or {}) do
-        documented[alias:match("^/lchelp%s*(%S*)$")] = true
+        -- Some aliases are slash commands of their own ("/lch", "/lchg"), not
+        -- "/lchelp x" keywords; those are covered by test_council.lua
+        local aliasKeyword = alias:match("^/lchelp%s*(%S*)$")
+        if aliasKeyword then documented[aliasKeyword] = true end
     end
 end
 for keyword in pairs(documented) do
@@ -64,7 +67,7 @@ end
 assert(LootCheck.db.settings.greyOSAwards == true and LootCheck.db.settings.graphGroupOnly == false, "toggles restored")
 assert(LootCheck.db.settings.shareEdits == false, "edit sharing left off")
 assert(TMBExportDB.settings.showTooltip == false, "TMBExport tooltip restored")
-for _, keyword in ipairs({ "graph", "drops", "grouponly", "audit", "imports", "data", "use", "giveitem", "removeitem", "addwlitem",
+for _, keyword in ipairs({ "graph", "drops", "council", "members", "grouponly", "audit", "imports", "data", "use", "giveitem", "removeitem", "addwlitem",
                            "removewlitem", "wishlist", "check", "overrides", "status", "greyos", "tmbtooltip", "help", "config" }) do
     assert(documented[keyword], "handled but undocumented: " .. keyword)
 end

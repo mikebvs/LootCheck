@@ -399,6 +399,21 @@ end
 
 SLASH_LOOTCHECK1 = "/lchelp"
 SLASH_LOOTCHECK2 = "/lootcheck"
+
+--- Shorthands that jump straight to a page. Anything typed after them is
+--- passed through, so "/lchg 30" works exactly like "/lchelp graph 30".
+local function RegisterShorthand(key, token, forward)
+    _G["SLASH_" .. key .. "1"] = token
+    SlashCmdList[key] = function(msg)
+        msg = (msg or ""):match("^%s*(.-)%s*$")
+        SlashCmdList["LOOTCHECK"]((forward .. " " .. msg):match("^%s*(.-)%s*$"))
+    end
+end
+
+RegisterShorthand("LOOTCHECKMENU", "/lch", "")
+RegisterShorthand("LOOTCHECKGRAPH", "/lchg", "graph")
+RegisterShorthand("LOOTCHECKAUDIT", "/lcha", "audit")
+RegisterShorthand("LOOTCHECKCOUNCIL", "/lchc", "council")
 SlashCmdList["LOOTCHECK"] = function(msg)
     msg = (msg or ""):match("^%s*(.-)%s*$")
     local cmd, rest = msg:match("^(%S+)%s*(.-)$")
@@ -429,6 +444,9 @@ SlashCmdList["LOOTCHECK"] = function(msg)
         else
             LC.Graph:Toggle()
         end
+
+    elseif cmd == "council" or cmd == "members" then
+        LC.Council:Toggle()
 
     elseif cmd == "drops" then
         if rest:lower() == "clear" then
