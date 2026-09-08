@@ -23,7 +23,19 @@ local ADDON_NAME = ...
 LootCheck = LootCheck or {}
 local LC = LootCheck
 
-LC.version = "1.0.0"
+--- The .toc is the single source of truth for the version: the packager and
+--- CurseForge read it from there, so keeping a second copy here would only
+--- give it something to drift out of step with.
+local function AddonVersion()
+    local get = (C_AddOns and C_AddOns.GetAddOnMetadata) or GetAddOnMetadata
+    local ok, version = pcall(function() return get and get(ADDON_NAME, "Version") end)
+    if ok and type(version) == "string" and version ~= "" and not version:find("@", 1, true) then
+        return version
+    end
+    return "dev" -- running from source, before the packager substitutes it
+end
+
+LC.version = AddonVersion()
 LC.PREFIX  = "|cff33ccffLootCheck|r: "
 LC.GREY    = "7f7f7f" -- hex colour used for greyed-out names on tooltips
 

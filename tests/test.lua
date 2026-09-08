@@ -158,6 +158,15 @@ for i = 5, #lines do
 end
 print("integrated section OK: " .. (#lines - 4) .. " entries, correct colours/greys/order")
 
+section("the version comes from the .toc, not a second copy in the source")
+do
+    local fromToc = GetAddOnMetadata("LootCheck", "Version")
+    assert(fromToc and fromToc ~= "", "the stub can read the toc")
+    assert(LootCheck.version == fromToc,
+        ("addon reports %s but the toc says %s"):format(tostring(LootCheck.version), tostring(fromToc)))
+    assert(LootCheck.version:match("^%d+%.%d+%.%d+$"), "version is x.y.z: " .. LootCheck.version)
+end
+
 section("integrated tooltip: raiders-only filter + max entries + suffix")
 raidersOnly = true
 SetTestGroup({ wl[received[1]].name })

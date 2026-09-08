@@ -3,6 +3,17 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.0.1] - 2026-09-08
+
+No changes to how the addon behaves in game. This is the first release built
+and published automatically from a git tag.
+
+### Changed
+
+- The version is read from `LootCheck.toc` at load instead of being repeated in
+  `Core.lua`, so the number shown in chat and sent to other LootCheck users
+  cannot drift from the one the packager and CurseForge publish.
+
 ## [1.0.0] - 2026-09-08
 
 First public release.
@@ -30,4 +41,5 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.0.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.1
 [1.0.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.0.0

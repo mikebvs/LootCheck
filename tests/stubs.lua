@@ -1,5 +1,18 @@
 -- Minimal WoW API stubs so the addon can run in plain Lua 5.1 / LuaJIT.
 
+local ADDON_DIR = ... -- passed by harness.py
+
+--- The addon reads its version out of the .toc, so the stub reads the real
+--- file rather than inventing a number that could drift from what ships
+function GetAddOnMetadata(addon, field)
+    if field ~= "Version" or not ADDON_DIR then return nil end
+    local handle = io.open(ADDON_DIR .. "/" .. addon .. ".toc", "r")
+    if not handle then return nil end
+    local text = handle:read("*a")
+    handle:close()
+    return text:match("##%s*Version:%s*([^\r\n]+)")
+end
+
 function print(...)
     local parts = {}
     for i = 1, select("#", ...) do parts[i] = tostring(select(i, ...)) end

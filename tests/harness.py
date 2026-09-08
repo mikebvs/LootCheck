@@ -128,7 +128,7 @@ if offences:
     sys.exit("taint guard failed:\n  " + "\n  ".join(offences))
 print("taint guard: no Blizzard dropdown/popup usage", flush=True)
 
-run(os.path.join(HERE, "stubs.lua"))
+run(os.path.join(HERE, "stubs.lua"), ADDON.replace("\\", "/"))
 # Real libraries where they are pure Lua, a loopback stand-in for AceComm
 run(os.path.join(ADDON, "Libs", "LibStub", "LibStub.lua"))
 run(os.path.join(ADDON, "Libs", "LibDeflate", "LibDeflate.lua"))
