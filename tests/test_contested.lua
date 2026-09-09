@@ -1,0 +1,190 @@
+-- The Contested Items page: every wishlisted item and how many want it.
+local function section(t) print("\n=== " .. t .. " ===") end
+local function click(button) button._scripts.OnClick(button) end
+local Contested = LootCheck.Contested
+
+local function shownRows()
+    local out = {}
+    for _, row in ipairs(Contested._rows) do
+        if row:IsShown() then tinsert(out, row) end
+    end
+    return out
+end
+
+section("every wishlisted item appears exactly once, with its wanters counted")
+LootCheck.db.settings.contestedGroupOnly = false
+SetTestGroup({})
+local list = Contested:Rows({})
+assert(#list > 0, "the wishlist data yields items")
+
+local wish = LootCheck.Data:WishlistIndex()
+local expectedItems = 0
+for _ in pairs(wish) do expectedItems = expectedItems + 1 end
+assert(#list == expectedItems, ("one row per item: %d rows for %d items"):format(#list, expectedItems))
+
+local seen = {}
+for _, r in ipairs(list) do
+    assert(not seen[r.itemID], "item listed twice: " .. tostring(r.itemName))
+    seen[r.itemID] = true
+
+    -- The count is the number of distinct raiders, not the number of entries:
+    -- a raider who wishlisted a ring twice is still one person wanting it
+    local people = 0
+    for _ in pairs(wish[r.itemID]) do people = people + 1 end
+    assert(r.wanted == people, ("%s: counted %d, %d raiders want it"):format(tostring(r.itemName), r.wanted, people))
+    assert(r.wanted == #r.wanters, "the count matches the list of wanters")
+    assert(r.still <= r.wanted, "no more can still want it than want it")
+end
+
+section("the order puts live contention first, not the raw total")
+for i = 2, #list do
+    local before, after = list[i - 1], list[i]
+    if before.still == after.still then
+        if before.wanted == after.wanted then
+            assert(tostring(before.itemName) <= tostring(after.itemName), "ties break by name")
+        else
+            assert(before.wanted >= after.wanted, "then by how many wanted it")
+        end
+    else
+        assert(before.still > after.still, "sorted by who is still waiting")
+    end
+end
+print(("most contested: %s, wanted by %d, %d still waiting"):format(
+    list[1].itemName, list[1].wanted, list[1].still))
+
+-- An item everyone already holds must not outrank one people are waiting on
+local settled, waiting
+for _, r in ipairs(list) do
+    if not waiting and r.still > 0 then waiting = r end
+    if not settled and r.still == 0 and r.wanted > 0 then settled = r end
+end
+if settled and waiting then
+    local settledIndex, waitingIndex
+    for i, r in ipairs(list) do
+        if r == settled then settledIndex = i end
+        if r == waiting then waitingIndex = i end
+    end
+    assert(waitingIndex < settledIndex,
+        "an item people are still waiting on outranks one they all hold")
+end
+
+section("received raiders count towards wanted but not towards still waiting")
+local subject
+for _, r in ipairs(list) do
+    if r.wanted > 1 then subject = r break end
+end
+assert(subject, "some item is wanted by more than one raider")
+
+local received = 0
+for _, w in ipairs(subject.wanters) do
+    if w.received then received = received + 1 end
+end
+assert(subject.still == subject.wanted - received,
+    ("%d want it, %d received, so %d should still be waiting, got %d"):format(
+        subject.wanted, received, subject.wanted - received, subject.still))
+
+-- Marking someone as having received it moves them out of "still waiting"
+if subject.still > 0 then
+    local target
+    for _, w in ipairs(subject.wanters) do
+        if not w.received then target = w break end
+    end
+
+    LootCheck.Awards:ApplyMark(target.norm, subject.itemID, subject.itemName, nil, false, GetServerTime())
+    LootCheck.Data:Invalidate()
+
+    local after
+    for _, r in ipairs(Contested:Rows({})) do
+        if r.itemID == subject.itemID then after = r break end
+    end
+    assert(after, "the item is still listed")
+    assert(after.wanted == subject.wanted, "they still wanted it")
+    assert(after.still == subject.still - 1,
+        ("one fewer waiting: %d became %d"):format(subject.still, after.still))
+
+    LootCheckDB.manualAwards = {}
+    LootCheck.Data:Invalidate()
+end
+
+section("the group filter narrows it to raiders who are here")
+local roster = LootCheck.Data:Roster()
+local names = {}
+for norm, r in pairs(roster) do
+    if #names < 2 then tinsert(names, r.displayName or norm) end
+end
+SetTestGroup(names)
+
+local grouped = Contested:Rows({ groupOnly = true })
+local groupMembers = LootCheck.Data:GroupMembers()
+for _, r in ipairs(grouped) do
+    for _, w in ipairs(r.wanters) do
+        assert(groupMembers[w.norm], ("%s is not in the group but was counted"):format(w.displayName))
+    end
+end
+local ungrouped = Contested:Rows({})
+assert(#grouped <= #ungrouped, "the filter cannot add items")
+print(("items wanted by the group: %d of %d"):format(#grouped, #ungrouped))
+SetTestGroup({})
+
+section("the page renders, colours the contention and lists the wanters")
+LootCheck.db.settings.contestedGroupOnly = false
+Contested:Open()
+local page = LootCheckContestedFrame
+assert(page:IsShown(), "the page is up")
+assert(page.head.wanted:GetText() == "Wanted by" and page.head.still:GetText() == "Still want",
+    "columns are labelled")
+assert(page.subtitle:GetText():find("wishlisted items", 1, true), page.subtitle:GetText())
+
+local rendered = shownRows()
+assert(#rendered > 0, "rows on screen")
+for _, row in ipairs(rendered) do
+    local r = row.data
+    assert((row.wanted:GetText() or ""):find(tostring(r.wanted), 1, true), "the wanted count is shown")
+    assert((row.still:GetText() or ""):find(tostring(r.still), 1, true), "and how many still want it")
+end
+
+-- Hovering names the raiders, greying the ones who already have it
+LootCheck.Contested:ShowRowTooltip(rendered[1])
+local tip = {}
+for i = 1, GameTooltip:NumLines() do tip[i] = _G["GameTooltipTextLeft" .. i]:GetText() end
+local text = table.concat(tip, "\n")
+assert(text:find("Wanted by " .. rendered[1].data.wanted, 1, true), "the tooltip counts them: " .. text)
+assert(text:find(rendered[1].data.wanters[1].displayName, 1, true), "and names them")
+
+-- The group check box is wired to the setting
+page.groupOnly:SetChecked(true)
+click(page.groupOnly)
+assert(LootCheck.db.settings.contestedGroupOnly == true, "the box writes the setting")
+assert(page.subtitle:GetText():find("current group only", 1, true), page.subtitle:GetText())
+page.groupOnly:SetChecked(false)
+click(page.groupOnly)
+
+section("the home page buttons wrap instead of running off the window")
+LootCheck.Window:Show("home")
+local home = LootCheckConfigFrame
+assert(#home.buttons >= 7, "there are enough buttons to need wrapping, got " .. #home.buttons)
+
+local total = 0
+for _, button in ipairs(home.buttons) do total = total + button.buttonWidth + 8 end
+local minWidth = LootCheck.Window:MinimumSize()
+assert(total > minWidth - 44, "this test is only meaningful while they overflow one row")
+
+LootCheck.Config:LayoutButtons(home, minWidth)
+assert(home.buttonRows > 1, "they wrap at the narrowest the window goes")
+
+LootCheck.Config:LayoutButtons(home, 2000)
+assert(home.buttonRows == 1, "and fit on one row when there is room")
+LootCheck.Window:Hide()
+
+section("the command opens it")
+SlashCmdList.LOOTCHECK("contested")
+assert(LootCheck.Window:Current() == "contested", "/lchelp contested")
+SlashCmdList.LOOTCHECK("contested")
+assert(not LootCheckWindow:IsShown(), "and toggles off")
+
+section("cleanup")
+LootCheck.Window:Hide()
+LootCheck.db.settings.contestedGroupOnly = false
+SetTestGroup({})
+
+print("\nCONTESTED TESTS PASSED")

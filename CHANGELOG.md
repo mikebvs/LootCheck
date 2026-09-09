@@ -3,6 +3,25 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.7.0] - 2026-09-09
+
+### Added
+
+- **Contested Items page** (`/lchelp contested`, or the Contested button):
+  every wishlisted item with how many raiders want it and how many are still
+  waiting on it, so the contested ones are visible before the raid rather than
+  during it. Hovering a row names the raiders with their priorities, greying
+  those who already have it, and a check box narrows the page to your current
+  group.
+
+The list is ordered by who is still waiting rather than by the raw total: an
+item six people wishlisted but five already hold is not contested any more.
+
+### Changed
+
+- The home page's buttons wrap onto another row when they no longer fit. Seven
+  of them no longer fit on one row at the window's narrowest.
+
 ## [1.6.1] - 2026-09-09
 
 ### Fixed
@@ -270,6 +289,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.7.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.7.0
 [1.6.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.6.1
 [1.6.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.6.0
 [1.5.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.5.1

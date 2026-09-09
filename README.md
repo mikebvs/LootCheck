@@ -32,6 +32,7 @@ LootCheck never writes to Gargul's data. The only thing it touches in TMBExport 
 | `/lchelp drops` | Open the graph page and its raid drops list (`/lchelp drops clear` forgets them) |
 | `/lchelp council` | Loot Council page: who is running LootCheck and on what version (`members` does the same) |
 | `/lchelp sheet [character]` | Character Sheet: a raider's wishlist laid out by equipment slot (`character` / `char` do the same) |
+| `/lchelp contested` | Contested Items: every wishlisted item and how many raiders want it (`competition` does the same) |
 | `/lchelp phase` | Show the content phase dates, or set one (`/lchelp phase P4 2026-10-15`) |
 | `/lchelp resetsize` | Put the current page back to its designed size |
 | `/lchelp check <item link>` | Print wishlist + award data for one item (shift-click the item into chat) |
@@ -135,6 +136,21 @@ Pages reflow rather than just stretching:
 - The **time range** dropdown offers *Past week*, *Past month*, *This phase*, *Last phase* and *All*. The two phase options follow the dates in `/lchelp phase`, so correcting a phase date moves this list with it.
 - The **check box** hides awards whose item was not on the winner's wishlist.
 - Both are remembered between sessions, and the entry count names the range it is showing.
+
+## Contested Items
+
+`/lchelp contested` (or the **Contested** button) lists every item anyone has wishlisted, so the ones several raiders are waiting on stand out before the raid rather than during it.
+
+Two numbers per item, because they answer different questions:
+
+| | |
+|---|---|
+| **Wanted by** | how many raiders have it on their wishlist at all |
+| **Still want** | how many of those have not received it yet — amber at two, red above |
+
+**The list is ordered by the second one.** An item six people wishlisted but five already hold is not contested any more, and sorting by the raw total would keep it near the top all phase.
+
+A raider counts once however many entries they have for an item, and counts as settled when they have received as many as they asked for — so a double ring wish needs two rings before it stops being contested. Hovering a row names the raiders with their priorities, greying the ones who already have it. A check box narrows the whole page to your current group.
 
 ## Character Sheet
 

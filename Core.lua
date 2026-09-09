@@ -49,6 +49,7 @@ local DEFAULTS = {
         auditWishlistOnly = false, -- audit page: hide awards that were not on the winner's wishlist
         auditRange     = "all", -- audit page: week / month / phase / lastphase / all
         sheetCharacter = nil,   -- character sheet page: whose sheet is shown
+        contestedGroupOnly = false, -- contested items page: only count raiders in your group
         shareEdits     = false, -- pass giveitem/removeitem/addwlitem/removewlitem on to your share list
         dropsIncludeRare = false, -- raid drops list: show blue items as well as epics
     },
@@ -471,6 +472,9 @@ SlashCmdList["LOOTCHECK"] = function(msg)
             LC:Print(message)
             if ok and LC.Graph then LC.Graph:RefreshIfShown() end
         end
+
+    elseif cmd == "contested" or cmd == "competition" then
+        LC.Contested:Toggle()
 
     elseif cmd == "sheet" or cmd == "character" or cmd == "char" then
         local who = rest:match("^(%S+)")

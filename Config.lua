@@ -155,28 +155,67 @@ local function BuildPage(page)
         { key = "graphButton", text = "Wishlist graph", width = 116, open = function() return LC.Graph end },
         { key = "importsButton", text = "Wishlist Data", width = 116, open = function() return LC.Imports end },
         { key = "sheetButton", text = "Character", width = 96, open = function() return LC.Sheet end },
+        { key = "contestedButton", text = "Contested", width = 96, open = function() return LC.Contested end },
         { key = "auditButton", text = "Audit", width = 76, open = function() return LC.Audit end },
         { key = "councilButton", text = "Loot Council", width = 110, open = function() return LC.Council end },
         { key = "helpButton", text = "Commands", width = 100, open = function() return LC.Help end },
     }
 
-    local previous
+    page.buttons = {}
     for _, spec in ipairs(buttons) do
         local button = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
         button:SetSize(spec.width, 24)
-        if previous then
-            button:SetPoint("LEFT", previous, "RIGHT", 8, 0)
-        else
-            button:SetPoint("BOTTOMLEFT", MARGIN, 20)
-        end
         button:SetText(spec.text)
         button:SetScript("OnClick", function()
             local module = spec.open()
             if module then module:Open() end
         end)
+        button.buttonWidth = spec.width
         page[spec.key] = button
-        previous = button
+        tinsert(page.buttons, button)
     end
+    Config:LayoutButtons(page, WIDTH)
+end
+
+--- Lay the page buttons out along the bottom, wrapping onto another row when
+--- they no longer fit. There are enough pages now that a single row overflows
+--- the window at its narrowest, and more will be added.
+function Config:LayoutButtons(page, w)
+    local BUTTON_GAP, ROW_GAP, HEIGHT_OF_ROW = 8, 6, 24
+    local available = (w or WIDTH) - MARGIN * 2
+
+    -- Work out the rows first, so the last one can sit at the bottom and the
+    -- others stack above it
+    local rows, row, used = {}, {}, 0
+    for _, button in ipairs(page.buttons) do
+        local width = button.buttonWidth or 100
+        local needed = (#row > 0) and (used + BUTTON_GAP + width) or width
+
+        if #row > 0 and needed > available then
+            tinsert(rows, row)
+            row, used = { button }, width
+        else
+            tinsert(row, button)
+            used = needed
+        end
+    end
+    if #row > 0 then tinsert(rows, row) end
+
+    for index, line in ipairs(rows) do
+        local fromBottom = 20 + (#rows - index) * (HEIGHT_OF_ROW + ROW_GAP)
+        local previous
+        for _, button in ipairs(line) do
+            button:ClearAllPoints()
+            if previous then
+                button:SetPoint("LEFT", previous, "RIGHT", BUTTON_GAP, 0)
+            else
+                button:SetPoint("BOTTOMLEFT", MARGIN, fromBottom)
+            end
+            previous = button
+        end
+    end
+
+    page.buttonRows = #rows
 end
 
 function Config:Refresh()
@@ -247,6 +286,7 @@ LC.Window:RegisterPage(PAGE, {
     build = BuildPage,
     layout = function(page, w)
         for i = 1, 3 do page.status[i]:SetWidth(w - MARGIN * 2) end
+        Config:LayoutButtons(page, w)
     end,
     onShow = function() Config:Refresh() end,
 })
