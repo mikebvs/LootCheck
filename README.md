@@ -31,6 +31,7 @@ LootCheck never writes to Gargul's data. The only thing it touches in TMBExport 
 | `/lchelp grouponly` | Toggle showing only raiders currently in your group |
 | `/lchelp drops` | Open the graph page and its raid drops list (`/lchelp drops clear` forgets them) |
 | `/lchelp council` | Loot Council page: who is running LootCheck and on what version (`members` does the same) |
+| `/lchelp sheet [character]` | Character Sheet: a raider's wishlist laid out by equipment slot (`character` / `char` do the same) |
 | `/lchelp phase` | Show the content phase dates, or set one (`/lchelp phase P4 2026-10-15`) |
 | `/lchelp resetsize` | Put the current page back to its designed size |
 | `/lchelp check <item link>` | Print wishlist + award data for one item (shift-click the item into chat) |
@@ -56,6 +57,7 @@ LootCheck never writes to Gargul's data. The only thing it touches in TMBExport 
 | `/lchg` | `/lchelp graph` |
 | `/lcha` | `/lchelp audit` |
 | `/lchc` | `/lchelp council` |
+| `/lchs` | `/lchelp sheet` |
 
 ## Wishlist Data (raid imports)
 
@@ -133,6 +135,16 @@ Pages reflow rather than just stretching:
 - The **time range** dropdown offers *Past week*, *Past month*, *This phase*, *Last phase* and *All*. The two phase options follow the dates in `/lchelp phase`, so correcting a phase date moves this list with it.
 - The **check box** hides awards whose item was not on the winner's wishlist.
 - Both are remembered between sessions, and the entry count names the range it is showing.
+
+## Character Sheet
+
+`/lchs` (or the **Character** button, or clicking a raider's bar on the graph) lays one raider's wishlist out like a paper doll: every equipment slot, what they want in it, and the rank they gave it.
+
+- **Empty slots are shown**, because a gap is as useful to know as a want.
+- **A slot wanted several times** — three rings, say — is named once and its wants listed under it in rank order.
+- **Received items are greyed**, exactly as on the tooltip.
+- **Tier tokens are placed by name.** A token is not equippable, so the client has no slot for it; "Pauldrons of the Fallen Defender" is a shoulder, and the names come from the same map used at import, so this is exact rather than a guess.
+- **Everything else asks the client**, which only knows items it has cached. Uncached items are requested and the page redraws when the data arrives, so anything sitting under *Slot not known yet* should move up within a moment of opening the page. Nothing is dropped for being unknown.
 
 ## Loot Council
 

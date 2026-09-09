@@ -509,27 +509,26 @@ function Wishlist:RemoveWishItem(args)
         itemName, display, removedImported and " (/lchelp addwlitem puts the imported entry back)" or ""))
 end
 
-function Wishlist:PrintWishlist(args)
-    local character = Trim(args):match("^(%S+)")
-    if not character then
-        LC:Print("Usage: /lchelp wishlist <character>")
-        return
-    end
-
-    local norm = LC:NormalizeName(character)
-    local display = DisplayName(norm)
+--- One character's wishlist as LootCheck sees it, sorted by priority:
+---   { itemID, name, prio, os, manual, received }
+--- Shared by "/lchelp wishlist" and the character sheet page.
+function Wishlist:ForCharacter(norm)
     local includeOS = (LC.db and LC.db.settings and LC.db.settings.greyOSAwards) ~= false
-
     local rows = {}
+
     for itemID, players in pairs(LC.Data:WishlistIndex()) do
         local p = players[norm]
         if p then
+            -- Their best-priority entries are the ones counted as received, so
+            -- a raider with two ring wishes has the first one greyed out first
             local receivedCount = LC.Data:ReceivedCount(LC.Data:AwardsForItem(itemID), norm, includeOS)
             local own = {}
             for _, e in ipairs(p.entries) do tinsert(own, e) end
             table.sort(own, function(a, b) return (a.prio or 1000) < (b.prio or 1000) end)
+
             for i, e in ipairs(own) do
                 tinsert(rows, {
+                    itemID = itemID,
                     prio = e.prio or 1000,
                     os = e.os,
                     manual = e.manual,
@@ -539,6 +538,24 @@ function Wishlist:PrintWishlist(args)
             end
         end
     end
+
+    table.sort(rows, function(a, b)
+        if a.prio ~= b.prio then return a.prio < b.prio end
+        return tostring(a.name) < tostring(b.name)
+    end)
+    return rows
+end
+
+function Wishlist:PrintWishlist(args)
+    local character = Trim(args):match("^(%S+)")
+    if not character then
+        LC:Print("Usage: /lchelp wishlist <character>")
+        return
+    end
+
+    local norm = LC:NormalizeName(character)
+    local display = DisplayName(norm)
+    local rows = self:ForCharacter(norm)
 
     local removed = {}
     for k, m in pairs(Overrides().removed) do
@@ -553,11 +570,6 @@ function Wishlist:PrintWishlist(args)
         if #removed > 0 then print("  manually removed: " .. table.concat(removed, ", ")) end
         return
     end
-
-    table.sort(rows, function(a, b)
-        if a.prio ~= b.prio then return a.prio < b.prio end
-        return a.name < b.name
-    end)
 
     LC:Print(("%s's wishlist (%d entries):"):format(display, #rows))
     for _, r in ipairs(LC.Data:WishlistAwardCounts({})) do

@@ -3,6 +3,27 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.6.0] - 2026-09-09
+
+### Added
+
+- **Character Sheet page** (`/lchs`, the Character button, or clicking a bar on
+  the wishlist graph): one raider's wishlist laid out by equipment slot, with
+  the rank they gave each item. Empty slots are shown, a slot wanted several
+  times is grouped under one heading in rank order, and received items are
+  greyed as they are on the tooltip.
+- A dropdown picks the raider, and the choice is remembered.
+
+Tier tokens are placed by name, since a token is not equippable and the client
+has no slot for one; the names come from the same set-piece map used at import.
+Everything else asks the client and, for items it has not cached, requests the
+data and redraws when it arrives rather than dropping the item.
+
+### Changed
+
+- `Wishlist:ForCharacter` now builds one raider's wishlist for both
+  `/lchelp wishlist` and the new page, instead of the command owning it.
+
 ## [1.5.1] - 2026-09-08
 
 ### Changed
@@ -235,6 +256,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.6.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.6.0
 [1.5.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.5.1
 [1.5.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.5.0
 [1.4.5]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.5

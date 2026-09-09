@@ -48,6 +48,7 @@ local DEFAULTS = {
         graphPhase     = "",    -- graph: "" = all time, else a Phases key like "P3"
         auditWishlistOnly = false, -- audit page: hide awards that were not on the winner's wishlist
         auditRange     = "all", -- audit page: week / month / phase / lastphase / all
+        sheetCharacter = nil,   -- character sheet page: whose sheet is shown
         shareEdits     = false, -- pass giveitem/removeitem/addwlitem/removewlitem on to your share list
         dropsIncludeRare = false, -- raid drops list: show blue items as well as epics
     },
@@ -418,6 +419,7 @@ RegisterShorthand("LOOTCHECKMENU", "/lch", "")
 RegisterShorthand("LOOTCHECKGRAPH", "/lchg", "graph")
 RegisterShorthand("LOOTCHECKAUDIT", "/lcha", "audit")
 RegisterShorthand("LOOTCHECKCOUNCIL", "/lchc", "council")
+RegisterShorthand("LOOTCHECKSHEET", "/lchs", "sheet")
 SlashCmdList["LOOTCHECK"] = function(msg)
     msg = (msg or ""):match("^%s*(.-)%s*$")
     local cmd, rest = msg:match("^(%S+)%s*(.-)$")
@@ -469,6 +471,10 @@ SlashCmdList["LOOTCHECK"] = function(msg)
             LC:Print(message)
             if ok and LC.Graph then LC.Graph:RefreshIfShown() end
         end
+
+    elseif cmd == "sheet" or cmd == "character" or cmd == "char" then
+        local who = rest:match("^(%S+)")
+        LC.Sheet:Toggle(who and LC:NormalizeName(who) or nil)
 
     elseif cmd == "council" or cmd == "members" then
         LC.Council:Toggle()

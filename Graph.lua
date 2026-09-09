@@ -148,6 +148,13 @@ local function GetRow(index)
     row:EnableMouse(true)
     row:SetScript("OnEnter", function(self) Graph:ShowRowTooltip(self) end)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    -- "Why is this raider's bar so long?" is usually followed by "what else do
+    -- they want?", so a click goes straight to their sheet
+    row:SetScript("OnMouseUp", function(self)
+        if self.data and self.data.normName and LC.Sheet then
+            LC.Sheet:Open(self.data.normName)
+        end
+    end)
 
     row.highlight = row:CreateTexture(nil, "BACKGROUND")
     row.highlight:SetAllPoints()
@@ -370,6 +377,7 @@ function Graph:ShowRowTooltip(row)
 
     GameTooltip:SetOwner(row, "ANCHOR_RIGHT")
     GameTooltip:AddLine(r.displayName, LC:ClassColor(r.class))
+    GameTooltip:AddLine("Click for their character sheet", 0.5, 0.5, 0.5)
 
     if r.count == 0 then
         GameTooltip:AddLine("No wishlist items awarded in this window.", 0.7, 0.7, 0.7)
