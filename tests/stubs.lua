@@ -61,7 +61,32 @@ function UnitClass(unit)
     local token = name and unitClasses[name]
     if token then return token, token end
 end
-function GetItemInfo() return nil end -- nothing is cached client-side in the test VM
+-- Item cache simulation. Empty by default, so an unregistered item is
+-- uncached exactly as in a fresh client; SetTestItems fills it in.
+--   SetTestItems{ [32837] = { name = "Warglaive of Azzinoth", equipLoc = "INVTYPE_WEAPONMAINHAND",
+--                             quality = 5, itemType = "Weapon", subType = "One-Handed Swords" } }
+-- Returns are in the client's order, so a caller that miscounts them reads the
+-- wrong value here too:
+--   name, link, quality, level, minLevel, type, subType, stackCount, equipLoc, texture, sellPrice
+local testItems = {}
+function SetTestItems(map) testItems = map or {} end
+function GetItemInfo(item)
+    local id = tonumber(item) or (type(item) == "string" and tonumber(item:match("item:(%d+)")))
+    local entry = id and testItems[id]
+    if not entry then return nil end
+
+    return entry.name or ("item:" .. tostring(id)),
+        ("|cffa335ee|Hitem:%d::::::::70:::::|h[%s]|h|r"):format(id, entry.name or "?"),
+        entry.quality or 4,
+        entry.level or 141,
+        entry.minLevel or 70,
+        entry.itemType or "Armor",
+        entry.subType or "Plate",
+        entry.stackCount or 1,
+        entry.equipLoc or "",
+        entry.texture or "Interface/Icons/INV_Misc_QuestionMark",
+        entry.sellPrice or 0
+end
 
 -- Guild simulation ---------------------------------------------------------
 -- SetTestGuild{ { name = "Mary-Testrealm", class = "WARLOCK", online = true }, ... }

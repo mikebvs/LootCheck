@@ -30,6 +30,68 @@ assert(#unplaced == 0, "tokens with no slot: " .. table.concat(unplaced, ", "))
 -- An item the client knows nothing about waits rather than being dropped
 assert(Sheet:SlotFor(999999, "Something Unheard Of") == "unknown", "an unknown item has no slot yet")
 
+section("the client's equip location is read from the right return value")
+-- itemEquipLoc is GetItemInfo's 9th return. Reading the 8th gives
+-- itemStackCount, a number, which quietly sent every non-token item to the
+-- unknown bucket. The stub returns the client's real tuple so miscounting it
+-- fails here rather than in game.
+SetTestItems({
+    [32837] = { name = "Warglaive of Azzinoth", equipLoc = "INVTYPE_WEAPONMAINHAND",
+                itemType = "Weapon", subType = "One-Handed Swords", stackCount = 1 },
+    [32838] = { name = "Warglaive of Azzinoth", equipLoc = "INVTYPE_WEAPONOFFHAND",
+                itemType = "Weapon", subType = "One-Handed Swords" },
+    [30627] = { name = "Tsunami Talisman", equipLoc = "INVTYPE_TRINKET" },
+    [28830] = { name = "Dragonspine Trophy", equipLoc = "INVTYPE_TRINKET" },
+    [29381] = { name = "Ring of a Thousand Marks", equipLoc = "INVTYPE_FINGER" },
+    [28802] = { name = "Cowl of the Grand Engineer", equipLoc = "INVTYPE_HEAD" },
+    [30871] = { name = "Cloak of Darkness", equipLoc = "INVTYPE_CLOAK" },
+    [28963] = { name = "Robe of the Elder Scribes", equipLoc = "INVTYPE_ROBE" },
+    [32235] = { name = "Cursed Vision of Sargeras", equipLoc = "INVTYPE_HEAD" },
+    [28587] = { name = "Girdle of Zaetar", equipLoc = "INVTYPE_WAIST" },
+    [30105] = { name = "Fang of the Leviathan", equipLoc = "INVTYPE_WEAPON" },
+    [28773] = { name = "Bulwark of Azzinoth", equipLoc = "INVTYPE_SHIELD" },
+    [28572] = { name = "Wand of the Forgotten Star", equipLoc = "INVTYPE_RANGEDRIGHT" },
+    [27886] = { name = "Idol of the Emerald Queen", equipLoc = "INVTYPE_RELIC" },
+    [28189] = { name = "Belt of Blasting", equipLoc = "INVTYPE_WAIST", stackCount = 1 },
+})
+
+-- The name says "main hand" and so does the client; both Warglaives are swords
+assert(Sheet:SlotFor(32837, "Warglaive of Azzinoth") == "mainhand", "the main-hand Warglaive")
+assert(Sheet:SlotFor(32838, "Warglaive of Azzinoth") == "offhand", "the off-hand one")
+
+local expected = {
+    [30627] = "trinket", [28830] = "trinket", [29381] = "finger",
+    [28802] = "head", [30871] = "back", [28963] = "chest",
+    [32235] = "head", [28587] = "waist", [30105] = "mainhand",
+    [28773] = "offhand", [28572] = "ranged", [27886] = "ranged",
+    [28189] = "waist",
+}
+for itemID, slot in pairs(expected) do
+    local got = Sheet:SlotFor(itemID)
+    assert(got == slot, ("%s: expected %s, got %s"):format(tostring(itemID), slot, tostring(got)))
+end
+
+-- Nothing cached must still be honest about it rather than guessing
+assert(Sheet:SlotFor(999999, "Utterly Unknown Thing") == "unknown", "an uncached item is unknown")
+
+-- Every equip location the client can report is either mapped or deliberately
+-- left out; none may resolve to a slot that is not in the paper doll
+local slotKeys = {}
+for _, slot in ipairs(Sheet.SLOTS) do slotKeys[slot.key] = true end
+for _, loc in ipairs({ "INVTYPE_HEAD", "INVTYPE_NECK", "INVTYPE_SHOULDER", "INVTYPE_CLOAK",
+                       "INVTYPE_CHEST", "INVTYPE_ROBE", "INVTYPE_WRIST", "INVTYPE_HAND",
+                       "INVTYPE_WAIST", "INVTYPE_LEGS", "INVTYPE_FEET", "INVTYPE_FINGER",
+                       "INVTYPE_TRINKET", "INVTYPE_WEAPON", "INVTYPE_2HWEAPON",
+                       "INVTYPE_WEAPONMAINHAND", "INVTYPE_WEAPONOFFHAND", "INVTYPE_SHIELD",
+                       "INVTYPE_HOLDABLE", "INVTYPE_RANGED", "INVTYPE_RANGEDRIGHT",
+                       "INVTYPE_THROWN", "INVTYPE_RELIC" }) do
+    SetTestItems({ [1] = { name = "probe", equipLoc = loc } })
+    local slot = Sheet:SlotFor(1)
+    assert(slot ~= "unknown", loc .. " has no slot")
+    assert(slotKeys[slot], ("%s maps to %s, which is not a slot on the sheet"):format(loc, slot))
+end
+SetTestItems({})
+
 section("the slots read like a paper doll, and every one is accounted for")
 local seen = {}
 for _, slot in ipairs(Sheet.SLOTS) do

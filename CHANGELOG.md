@@ -3,6 +3,20 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.6.1] - 2026-09-09
+
+### Fixed
+
+- Almost every item on the Character Sheet sat under "Slot not known yet".
+  `itemEquipLoc` is `GetItemInfo`'s 9th return, which inside a `pcall` is the
+  10th value; the code named the 9th and so read `itemStackCount`, a number,
+  which matches no slot. Only tier tokens, which are placed by name, were
+  landing correctly. The value is now selected by position rather than counted
+  out, and the test stub returns the client's real tuple so miscounting it
+  fails the suite instead of showing up in game.
+- Redraws prompted by item data arriving are coalesced. The event fires once
+  per item, and a wishlist can hold hundreds.
+
 ## [1.6.0] - 2026-09-09
 
 ### Added
@@ -256,6 +270,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.6.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.6.1
 [1.6.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.6.0
 [1.5.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.5.1
 [1.5.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.5.0

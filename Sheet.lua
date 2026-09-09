@@ -111,7 +111,11 @@ function Sheet:SlotFor(itemID, itemName)
     end
 
     if type(GetItemInfo) == "function" then
-        local ok, _, _, _, _, _, _, _, equipLoc = pcall(GetItemInfo, itemID)
+        -- itemEquipLoc is GetItemInfo's 9th return. Naming it by position in a
+        -- pcall's result list is one blank away from silently reading
+        -- itemStackCount instead, which is what happened here, so select() says
+        -- which value is wanted rather than leaving it to be counted.
+        local ok, equipLoc = pcall(function() return select(9, GetItemInfo(itemID)) end)
         if ok and type(equipLoc) == "string" and EQUIP_LOC[equipLoc] then
             return EQUIP_LOC[equipLoc]
         end
@@ -429,11 +433,24 @@ function Sheet:Toggle(norm)
 end
 
 -- Item data arrives asynchronously, so a slot we could not name a moment ago
--- may be known now
+-- may be known now. A wishlist can hold hundreds of items and the event fires
+-- once per item, so redraws are coalesced rather than run for each one.
+local pendingRedraw = false
+
 local itemInfoFrame = CreateFrame("Frame")
 itemInfoFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 itemInfoFrame:SetScript("OnEvent", function()
-    if LC.Sheet then LC.Sheet:RefreshIfShown() end
+    if pendingRedraw or not (LC.Window and LC.Window:IsShowing(PAGE)) then return end
+
+    if C_Timer and C_Timer.After then
+        pendingRedraw = true
+        C_Timer.After(0.2, function()
+            pendingRedraw = false
+            if LC.Sheet then LC.Sheet:RefreshIfShown() end
+        end)
+    elseif LC.Sheet then
+        LC.Sheet:RefreshIfShown()
+    end
 end)
 
 LC.Window:RegisterPage(PAGE, {
