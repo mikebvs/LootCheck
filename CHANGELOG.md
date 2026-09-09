@@ -3,6 +3,17 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.5] - 2026-09-08
+
+### Fixed
+
+- Grabbing the resize grip no longer jumps the window. The resize is now driven
+  from the cursor instead of by handing the frame to `Frame:StartSizing`, which
+  on this client resized it the instant it was called, to a size unrelated to
+  the cursor, the window or any bound the addon sets. Following the cursor
+  makes the first update a delta of zero, so a drag cannot begin with a jump,
+  and the behaviour no longer depends on the client's sizing implementation.
+
 ## [1.4.4] - 2026-09-08
 
 ### Fixed
@@ -197,6 +208,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.4.5]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.5
 [1.4.4]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.4
 [1.4.3]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.3
 [1.4.2]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.2

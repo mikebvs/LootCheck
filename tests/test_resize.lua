@@ -40,6 +40,42 @@ Window:Show("audit")
 local w = select(1, Window:ContentSize())
 assert(w >= minW, "even a narrow page opens at least at the floor, got " .. w)
 
+section("a drag follows the cursor, and never jumps when it starts")
+-- This is the bug that took four attempts: grabbing the grip resized the
+-- window before the cursor had moved at all. Driving the size from the cursor
+-- rather than handing the frame to the client's StartSizing makes the first
+-- update a delta of zero, so a jump is not possible.
+Window:Show("audit")
+Window:Resize(900, 600)
+SetTestCursor(1500, 1000)
+
+local grabbedW, grabbedH = Window:ContentSize()
+frame.grip._scripts.OnDragStart(frame.grip)
+local startedW, startedH = Window:ContentSize()
+assert(startedW == grabbedW and startedH == grabbedH,
+    ("starting a drag must not resize: %sx%s became %sx%s"):format(grabbedW, grabbedH, startedW, startedH))
+
+-- Still nothing while the cursor is where it was
+frame._scripts.OnUpdate(frame)
+assert(select(1, Window:ContentSize()) == grabbedW, "no movement, no resize")
+
+-- Drag right and down: wider by the same amount, taller by it too (y is inverted)
+SetTestCursor(1500 + 120, 1000 - 80)
+frame._scripts.OnUpdate(frame)
+local draggedW, draggedH = Window:ContentSize()
+assert(draggedW == grabbedW + 120, ("width follows the cursor: %s, expected %s"):format(draggedW, grabbedW + 120))
+assert(draggedH == grabbedH + 80, ("height follows it downwards: %s, expected %s"):format(draggedH, grabbedH + 80))
+
+-- Dragging back up and left shrinks it again
+SetTestCursor(1500 - 60, 1000 + 40)
+frame._scripts.OnUpdate(frame)
+assert(select(1, Window:ContentSize()) == grabbedW - 60, "and shrinks when dragged back")
+
+frame.grip._scripts.OnDragStop(frame.grip)
+assert(frame._scripts.OnUpdate == nil, "the drag handler is removed on release")
+frame._scripts.OnUpdate = nil
+SetTestCursor(0, 0)
+
 section("the size you drag to carries to every other page")
 Window:Resize(900, 700)
 local newW, newH = Window:ContentSize()

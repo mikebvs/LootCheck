@@ -244,6 +244,31 @@ function Window:Resize(w, h)
     ApplyLayout()
 end
 
+local sizing = { active = false } -- state of a drag in progress
+
+--- The cursor in the window's own coordinate units.
+--- GetCursorPosition reports screen pixels, which only match frame units when
+--- the effective scale is 1.
+local function CursorPosition()
+    if type(GetCursorPosition) ~= "function" then return 0, 0 end
+
+    local x, y = GetCursorPosition()
+    local scale = (frame and frame.GetEffectiveScale and frame:GetEffectiveScale()) or 1
+    if type(scale) ~= "number" or scale == 0 then scale = 1 end
+    return (x or 0) / scale, (y or 0) / scale
+end
+
+--- Follow the cursor while the grip is held. The frame is anchored at its
+--- top-left, so the width grows with the cursor and the height grows against
+--- it: WoW's y axis points up, so dragging downwards lowers y.
+function Window:DragUpdate()
+    if not sizing.active then return end
+
+    local x, y = CursorPosition()
+    self:Resize(sizing.width + (x - sizing.cursorX),
+                sizing.height + (sizing.cursorY - y))
+end
+
 --- Pin the top-left corner before sizing from the bottom-right one.
 ---
 --- A frame anchored by its centre keeps that centre fixed while a corner is
@@ -342,25 +367,39 @@ local function Build()
     -- smallest twitch of the cursor resized it, and the client snapped the
     -- frame up to its minimum the moment sizing began if it happened to be
     -- smaller than that.
+    -- The resize is driven from the cursor rather than by Frame:StartSizing.
+    --
+    -- StartSizing hands control to the client, and on this client it jumped the
+    -- frame to a size unrelated to the cursor, the window or any bound set here
+    -- the instant it was called (1019x538 became 1892x982 inside a single
+    -- handler). Following the cursor ourselves is a few more lines and behaves
+    -- the same everywhere: the first update has a delta of zero, so a drag can
+    -- never begin with a jump.
     grip:RegisterForDrag("LeftButton")
     grip:SetScript("OnMouseDown", function() Window:Trace("grip mouse down") end)
+
     grip:SetScript("OnDragStart", function()
         Window:Trace("drag start, before")
-        Window:ApplyBounds()
-        AnchorTopLeft()
-        f:StartSizing("BOTTOMRIGHT")
+        AnchorTopLeft() -- grow right and down from a fixed top-left corner
+
+        local cursorX, cursorY = CursorPosition()
+        sizing.active = true
+        sizing.cursorX, sizing.cursorY = cursorX, cursorY
+        sizing.width = (f.GetWidth and f:GetWidth()) or width
+        sizing.height = (f.GetHeight and f:GetHeight()) or height
+
+        f:SetScript("OnUpdate", function() Window:DragUpdate() end)
         Window:Trace("drag start, after")
     end)
-    grip:SetScript("OnDragStop", function()
-        f:StopMovingOrSizing()
-        Window:Trace("drag stop, before")
 
-        -- Trust the frame's own size after a drag, then clamp and store it
-        local w = (f.GetWidth and f:GetWidth()) or width
-        local h = (f.GetHeight and f:GetHeight()) or height
-        Window:Resize(w, h)
+    grip:SetScript("OnDragStop", function()
+        Window:Trace("drag stop, before")
+        sizing.active = false
+        f:SetScript("OnUpdate", nil)
+        f:StopMovingOrSizing() -- harmless if nothing was moving
+
         SaveSize()
-        SavePosition() -- sizing from a corner moves the anchor too
+        SavePosition() -- growing from a corner leaves the anchor where it was
         Window:Trace("drag stop, after")
     end)
     f.grip = grip

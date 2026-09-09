@@ -27,6 +27,11 @@ date = os.date
 GetTime = os.clock
 GetServerTime = os.time
 time = os.time -- WoW has this as a global; os is not available in the addon sandbox
+
+-- Cursor simulation, for driving the window's resize grip
+local cursorX, cursorY = 0, 0
+function SetTestCursor(x, y) cursorX, cursorY = x or 0, y or 0 end
+function GetCursorPosition() return cursorX, cursorY end
 UISpecialFrames = {}
 SlashCmdList = {}
 BackdropTemplateMixin = {}
