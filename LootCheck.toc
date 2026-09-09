@@ -2,7 +2,7 @@
 ## Title: LootCheck |cff33ccff(Gargul + TMB)|r
 ## Notes: Greys out raiders on Gargul's TMB tooltips once they have been awarded the item, and graphs wishlist awards per raider using That's My BIS Export data.|n|nCommands: /lchelp
 ## Author: Flowmotion
-## Version: 1.7.0
+## Version: 1.7.1
 ## X-License: MIT
 ## X-Curse-Project-ID: 1687375
 ## SavedVariables: LootCheckDB

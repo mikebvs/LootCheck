@@ -159,6 +159,42 @@ assert(page.subtitle:GetText():find("current group only", 1, true), page.subtitl
 page.groupOnly:SetChecked(false)
 click(page.groupOnly)
 
+section("hovering a row draws a guide line above and below it")
+-- Rows are wide and the numbers that matter are at the far right, so the eye
+-- needs a line to follow across from the item name
+local guided = shownRows()[1]
+assert(guided, "there is a row to hover")
+assert(guided.guideTop and guided.guideBottom, "the row has both guides")
+assert(not guided.guideTop:IsShown() and not guided.guideBottom:IsShown(),
+    "they are off until the cursor arrives")
+
+guided._scripts.OnEnter(guided)
+assert(guided.guideTop:IsShown() and guided.guideBottom:IsShown(),
+    "both appear on hover")
+
+guided._scripts.OnLeave(guided)
+assert(not guided.guideTop:IsShown() and not guided.guideBottom:IsShown(),
+    "and go again when the cursor leaves")
+
+-- A row hidden while the cursor is on it never receives OnLeave, so a refresh
+-- has to clear the guides itself or one is left glowing on an empty row.
+-- The row hovered here has to be one the shrink actually hides, or the test
+-- passes whether or not the clearing happens.
+local doomed = shownRows()[#shownRows()]
+assert(doomed and doomed ~= shownRows()[1], "there is a row below the first to hover")
+doomed._scripts.OnEnter(doomed)
+assert(doomed.guideTop:IsShown(), "it is guided before the refresh")
+LootCheck.Contested.rowCount = 1
+LootCheck.Contested:Refresh()
+for _, row in ipairs(LootCheck.Contested._rows) do
+    if not row:IsShown() then
+        assert(not row.guideTop:IsShown(), "a hidden row must not keep its guide")
+    end
+end
+
+LootCheck.Contested.rowCount = 22
+LootCheck.Contested:Refresh()
+
 section("the home page buttons wrap instead of running off the window")
 LootCheck.Window:Show("home")
 local home = LootCheckConfigFrame

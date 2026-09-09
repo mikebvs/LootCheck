@@ -3,6 +3,17 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.7.1] - 2026-09-09
+
+### Added
+
+- Hovering a row on the Contested Items and Character Sheet pages draws a thin
+  line above and below it, so the eye can follow across a wide row from the
+  item name to the numbers on the right.
+
+Rows hidden while the cursor is on them never receive their OnLeave, so a
+refresh clears the guides rather than leaving one lit on an empty row.
+
 ## [1.7.0] - 2026-09-09
 
 ### Added
@@ -289,6 +300,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.7.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.7.1
 [1.7.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.7.0
 [1.6.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.6.1
 [1.6.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.6.0

@@ -556,6 +556,40 @@ function Window:Text(parent, style, width)
     return fs
 end
 
+--- Thin lines above and below a list row, shown while the cursor is on it.
+--- List rows are wide and the numbers that matter sit at the far right, so the
+--- eye needs something to follow across from the item name.
+---
+--- The row gets a SetGuides(shown) method; pages call it from their own
+--- OnEnter and OnLeave rather than this hooking them, because those handlers
+--- already exist and silently replacing them would be worse than asking.
+function Window:AddRowGuides(row)
+    local function Line(point, opposite)
+        local line = row:CreateTexture(nil, "OVERLAY")
+        line:SetPoint(point .. "LEFT", 0, 0)
+        line:SetPoint(point .. "RIGHT", 0, 0)
+        line:SetHeight(1)
+        line:SetColorTexture(1, 0.92, 0.6, 0.55)
+        line:Hide()
+        return line
+    end
+
+    row.guideTop = Line("TOP")
+    row.guideBottom = Line("BOTTOM")
+
+    function row:SetGuides(shown)
+        if shown then
+            self.guideTop:Show()
+            self.guideBottom:Show()
+        else
+            self.guideTop:Hide()
+            self.guideBottom:Hide()
+        end
+    end
+
+    return row
+end
+
 --- How many rows of `rowHeight` fit into `available` pixels. Pages call this
 --- from their layout so a taller window shows more rows rather than more
 --- empty inset.

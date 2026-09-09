@@ -181,8 +181,15 @@ local function GetRow(index)
     row:SetPoint("TOPLEFT", 8, -6 - HEAD_HEIGHT - (index - 1) * ROW_HEIGHT)
     row:SetPoint("RIGHT", inset, "RIGHT", -30, 0)
     row:EnableMouse(true)
-    row:SetScript("OnEnter", function(self) Contested:ShowRowTooltip(self) end)
-    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    LC.Window:AddRowGuides(row)
+    row:SetScript("OnEnter", function(self)
+        self:SetGuides(true)
+        Contested:ShowRowTooltip(self)
+    end)
+    row:SetScript("OnLeave", function(self)
+        self:SetGuides(false)
+        GameTooltip:Hide()
+    end)
 
     row.highlight = row:CreateTexture(nil, "BACKGROUND")
     row.highlight:SetAllPoints()
@@ -251,12 +258,15 @@ function Contested:Refresh()
             row.data = r
             row:Show()
         else
+            row:SetGuides(false)
             row:Hide()
             row.data = nil
         end
     end
 
+    -- A row hidden under the cursor never gets its OnLeave, so clear it here
     for i = self.rowCount + 1, #rows do
+        rows[i]:SetGuides(false)
         rows[i]:Hide()
         rows[i].data = nil
     end

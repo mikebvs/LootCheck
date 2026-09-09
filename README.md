@@ -152,6 +152,8 @@ Two numbers per item, because they answer different questions:
 
 A raider counts once however many entries they have for an item, and counts as settled when they have received as many as they asked for — so a double ring wish needs two rings before it stops being contested. Hovering a row names the raiders with their priorities, greying the ones who already have it. A check box narrows the whole page to your current group.
 
+Hovering a row also draws a line above and below it, so the eye can follow across from the item name to the counts on the right.
+
 ## Character Sheet
 
 `/lchs` (or the **Character** button, or clicking a raider's bar on the graph) lays one raider's wishlist out like a paper doll: every equipment slot, what they want in it, and the rank they gave it.
@@ -161,6 +163,7 @@ A raider counts once however many entries they have for an item, and counts as s
 - **Received items are greyed**, exactly as on the tooltip.
 - **Tier tokens are placed by name.** A token is not equippable, so the client has no slot for it; "Pauldrons of the Fallen Defender" is a shoulder, and the names come from the same map used at import, so this is exact rather than a guess.
 - **Everything else asks the client**, which only knows items it has cached. Uncached items are requested and the page redraws when the data arrives, so anything sitting under *Slot not known yet* should move up within a moment of opening the page. Nothing is dropped for being unknown.
+- **Hovering a row draws a line above and below it**, so the eye can follow across from the slot to the rank on the right.
 
 ## Loot Council
 

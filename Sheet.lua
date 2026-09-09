@@ -292,8 +292,17 @@ local function GetRow(index)
     row:SetPoint("TOPLEFT", 8, -6 - HEAD_HEIGHT - (index - 1) * ROW_HEIGHT)
     row:SetPoint("RIGHT", inset, "RIGHT", -30, 0)
     row:EnableMouse(true)
-    row:SetScript("OnEnter", function(self) Sheet:ShowRowTooltip(self) end)
-    row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    LC.Window:AddRowGuides(row)
+    row:SetScript("OnEnter", function(self)
+        -- Guides go up even on an empty slot, where there is no tooltip: the
+        -- point is following the row across, not the item
+        self:SetGuides(true)
+        Sheet:ShowRowTooltip(self)
+    end)
+    row:SetScript("OnLeave", function(self)
+        self:SetGuides(false)
+        GameTooltip:Hide()
+    end)
     row:SetScript("OnMouseUp", function(self)
         if self.data and self.data.entry and HandleModifiedItemClick then
             local link = self.data.entry.itemLink
@@ -380,12 +389,15 @@ function Sheet:Refresh()
             row.data = data
             row:Show()
         else
+            row:SetGuides(false)
             row:Hide()
             row.data = nil
         end
     end
 
+    -- A row hidden under the cursor never gets its OnLeave, so clear it here
     for i = self.rowCount + 1, #rows do
+        rows[i]:SetGuides(false)
         rows[i]:Hide()
         rows[i].data = nil
     end
