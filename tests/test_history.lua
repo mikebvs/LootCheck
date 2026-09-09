@@ -88,10 +88,17 @@ local n = 0
 for _ in pairs(LootCheckDB.history) do n = n + 1 end
 assert(n == current, "award event should re-log current matches")
 
-section("graph shows 'N (M)', subtitle mentions all time, row tooltip lists the rest")
+section("graph shows 'N / T (M)', subtitle mentions all time, row tooltip lists the rest")
 LootCheck.Graph:Open()
 local first = LootCheck.Graph._rows[1]
-assert(first and first.count:GetText():match("^%d+ |cffaaaaaa%(%d+%)|r$"), "count text: " .. tostring(first and first.count:GetText()))
+-- items / tier tokens (all-time items)
+local countText = first and first.count:GetText()
+assert(countText and countText:match("^%d+ |cff7f7f7f/|r |cffffd100%d+|r |cffaaaaaa%(%d+%)|r$"),
+    "count text: " .. tostring(countText))
+local shownCount, shownTokens, shownHistory = countText:match("^(%d+) |cff7f7f7f/|r |cffffd100(%d+)|r |cffaaaaaa%((%d+)%)|r$")
+assert(tonumber(shownCount) == first.data.count, "the first number is the wishlist count")
+assert(tonumber(shownTokens) == first.data.tokens, "the second is the tier token count")
+assert(tonumber(shownHistory) == first.data.history, "the third is the all-time count")
 print("first row:", first.name:GetText(), first.count:GetText())
 print("subtitle:", LootCheckGraphFrame.subtitle:GetText())
 assert(LootCheckGraphFrame.subtitle:GetText():find("all time", 1, true), "subtitle")
@@ -119,5 +126,48 @@ print = realPrint
 local text = table.concat(captured, "\n")
 assert(text:find("wishlist items received: %d+ against the current wishlist, %d+ all time"), text)
 assert(text:find("Non%-OS wishlist items awarded: %d+ against the current wishlist, %d+ all time"), text)
+
+section("tier tokens are counted from the award history, not the wishlist")
+local tokenIDs = LootCheck:TokenIDs()
+local tokenCount = 0
+for _ in pairs(tokenIDs) do tokenCount = tokenCount + 1 end
+assert(tokenCount > 0, "the piece map yields token ids")
+assert(LootCheck:TokenName(29764) == "Pauldrons of the Fallen Defender",
+    "a known token resolves: " .. tostring(LootCheck:TokenName(29764)))
+assert(LootCheck:TokenName(30627) == nil, "an ordinary item is not a token")
+
+-- Every counted token must really be a token award to that player
+local counts = LootCheck.Data:WishlistAwardCounts({})
+local anyTokens = 0
+for _, r in ipairs(counts) do
+    anyTokens = anyTokens + (r.tokens or 0)
+    assert(r.tokens == #r.tokenItems, r.displayName .. ": count and item list disagree")
+    for _, item in ipairs(r.tokenItems) do
+        assert(tokenIDs[item.itemID], ("%s was counted a token but is not one"):format(tostring(item.itemID)))
+    end
+end
+print(("tier tokens counted across the roster: %d"):format(anyTokens))
+
+-- A token awarded to someone who never wishlisted it still counts: the
+-- question is how much tier they have had, not whether they asked for it
+local victim = counts[1] and counts[1].normName
+if victim then
+    local before = 0
+    for _, r in ipairs(LootCheck.Data:WishlistAwardCounts({})) do
+        if r.normName == victim then before = r.tokens or 0 end
+    end
+
+    LootCheck.Awards:ApplyMark(victim, 29764, "Pauldrons of the Fallen Defender", nil, false, GetServerTime())
+    LootCheck.Data:Invalidate()
+
+    local after = 0
+    for _, r in ipairs(LootCheck.Data:WishlistAwardCounts({})) do
+        if r.normName == victim then after = r.tokens or 0 end
+    end
+    assert(after == before + 1, ("a new token award counts: %d became %d"):format(before, after))
+
+    LootCheckDB.manualAwards = {}
+    LootCheck.Data:Invalidate()
+end
 
 print("\nHISTORY TESTS PASSED")

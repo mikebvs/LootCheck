@@ -432,6 +432,25 @@ LC.PIECE_TO_TOKEN = {
     ["Thunderheart Boots"] = { token = "Boots of the Forgotten Vanquisher", token_id = 34858, source = "Felmyst", instance = "Sunwell Plateau" },
 }
 
+local tokenIDs
+
+--- Every tier token item ID, as a set. Derived from the piece mapping above so
+--- the two can never disagree, and built once because it never changes.
+function LC:TokenIDs()
+    if tokenIDs then return tokenIDs end
+
+    tokenIDs = {}
+    for _, map in pairs(self.PIECE_TO_TOKEN or {}) do
+        if map.token_id then tokenIDs[map.token_id] = map.token end
+    end
+    return tokenIDs
+end
+
+--- The token's name when this item is one, else nil
+function LC:TokenName(itemID)
+    return self:TokenIDs()[tonumber(itemID) or -1]
+end
+
 -- Rewrite a wishlist entries list in place: any entry whose item_name
 -- matches a known set piece is converted to the corresponding token
 -- (item_id, item_name, source_name, instance_name).

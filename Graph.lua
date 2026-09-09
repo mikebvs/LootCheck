@@ -109,7 +109,7 @@ local function BuildPage(page)
     local header2 = LC.Window:Text(page, "GameFontDisableSmall")
     header2:SetPoint("LEFT", header, "LEFT", NAME_WIDTH + 8, 0)
     header2:SetPoint("RIGHT", page, "LEFT", MARGIN + leftWidth, 0)
-    header2:SetText("Awarded: current wishlist (all time)")
+    header2:SetText("Awarded: wishlist / tokens (all time)")
     page.header2 = header2
 
     -- The list sits on a dark inset so it reads as a panel of its own
@@ -292,8 +292,8 @@ function Graph:Refresh()
         db and (db.source .. ": ") or "", #list, total, window, allTime))
 
     frame.header2:SetText(phase
-        and ("Awarded: %s (all time)"):format(phase.key)
-        or "Awarded: current wishlist (all time)")
+        and ("Awarded: %s / tokens (all time)"):format(phase.key)
+        or "Awarded: wishlist / tokens (all time)")
 
     for i, r in ipairs(list) do
         local row = GetRow(i)
@@ -311,7 +311,9 @@ function Graph:Refresh()
             row.bar:Hide()
         end
 
-        row.count:SetText(("%d |cffaaaaaa(%d)|r"):format(r.count, r.history or 0))
+        -- items / tier tokens (all-time items)
+        row.count:SetText(("%d |cff7f7f7f/|r |cffffd100%d|r |cffaaaaaa(%d)|r"):format(
+            r.count, r.tokens or 0, r.history or 0))
         row.data = r
         row:Show()
     end
@@ -378,6 +380,18 @@ function Graph:ShowRowTooltip(row)
             local when = (item.timestamp and item.timestamp > 0) and date("%Y-%m-%d", item.timestamp) or ""
             GameTooltip:AddDoubleLine(label, when, 1, 1, 1, 0.6, 0.6, 0.6)
         end
+    end
+
+    if (r.tokens or 0) > 0 then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(("%d tier token%s awarded:"):format(r.tokens, r.tokens == 1 and "" or "s"), 1, 0.82, 0)
+        for _, item in ipairs(r.tokenItems or {}) do
+            local when = (item.timestamp and item.timestamp > 0) and date("%Y-%m-%d", item.timestamp) or ""
+            GameTooltip:AddDoubleLine(item.itemLink or item.itemName or "?", when, 1, 0.82, 0, 0.6, 0.6, 0.6)
+        end
+    else
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine("No tier tokens awarded.", 0.7, 0.7, 0.7)
     end
 
     -- Everything else they ever received off a wishlist, outside this window

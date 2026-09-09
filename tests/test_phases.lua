@@ -92,8 +92,10 @@ LootCheck.db.settings.graphDays = 0
 LootCheck.Graph:Open()
 local page = LootCheckGraphFrame
 assert(page.phaseLabel:GetText():find("All time", 1, true), page.phaseLabel:GetText())
-assert(page.header2:GetText():find("current wishlist", 1, true),
-    "the default column is labelled honestly: " .. page.header2:GetText())
+assert(page.header2:GetText():find("wishlist", 1, true),
+    "the default column still says wishlist, not phase: " .. page.header2:GetText())
+assert(not page.header2:GetText():find("phase", 1, true),
+    "and must not call the wishlist count a phase: " .. page.header2:GetText())
 
 local allTimeTotal = 0
 for _, row in ipairs(LootCheck.Graph._rows) do

@@ -3,6 +3,20 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-09-08
+
+### Added
+
+- The graph's count column now reads `4 / 2 (22)`: wishlist items awarded,
+  **tier tokens awarded**, and the all-time total. Tokens are counted over the
+  same window as the first number, so selecting a phase narrows both.
+- Hovering a bar lists the tier tokens with their dates.
+
+Tier tokens are read from Gargul's award history rather than through the
+wishlist, so one given to a raider who never wishlisted it still counts. The
+token ids are derived from the set-piece map already used at import time, so
+the two cannot drift apart.
+
 ## [1.4.5] - 2026-09-08
 
 ### Fixed
@@ -208,6 +222,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.5.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.5.0
 [1.4.5]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.5
 [1.4.4]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.4
 [1.4.3]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.3

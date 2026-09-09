@@ -473,9 +473,39 @@ end
 -- The numbers the graph is built on
 ------------------------------------------------------------------------------
 
+--- Tier tokens each raider has been awarded inside the same window as the
+--- counts below. Read straight from Gargul's award history rather than through
+--- the wishlist, so a token handed to someone who never wishlisted it still
+--- counts: the question is "how much tier have they had", not "did they ask".
+local function ComputeTokens(self, from, to)
+    local counts, items = {}, {}
+    local awards = self:AwardIndex()
+
+    for tokenID, tokenName in pairs(LC:TokenIDs()) do
+        for norm, list in pairs(awards[tokenID] or {}) do
+            for _, a in ipairs(list) do
+                local when = a.timestamp or 0
+                if not a.OS and when >= (from or 0) and (not to or when < to) then
+                    counts[norm] = (counts[norm] or 0) + 1
+                    items[norm] = items[norm] or {}
+                    tinsert(items[norm], {
+                        itemID = tokenID,
+                        itemName = tokenName,
+                        itemLink = a.itemLink,
+                        timestamp = when,
+                    })
+                end
+            end
+        end
+    end
+
+    return counts, items
+end
+
 --- One row per TMBExport character:
 ---   { normName, displayName, class,
----     count, items          - matches against the CURRENT wishlist (this phase), see ComputeMatches
+---     count, items          - matches against the current wishlist, see ComputeMatches
+---     tokens, tokenItems    - tier tokens awarded in the same window, see ComputeTokens
 ---     history, historyItems - all-time wishlisted receipts, see Data:History }
 --- sorted by count (desc), then history (desc), then name.
 function Data:WishlistAwardCounts(opts)
@@ -497,6 +527,7 @@ function Data:WishlistAwardCounts(opts)
     local windowed = (from and from > 0) or to
     local matches = windowed and ComputeMatches(self, from or 0, to) or allMatches
     local history = self:History()
+    local tokenCounts, tokenItems = ComputeTokens(self, from or 0, to)
 
     local list = {}
     for norm, r in pairs(self:Roster()) do
@@ -513,6 +544,8 @@ function Data:WishlistAwardCounts(opts)
                 items = items,
                 history = math.max(h and h.count or 0, #items),
                 historyItems = h and h.items or {},
+                tokens = tokenCounts[norm] or 0,
+                tokenItems = tokenItems[norm] or {},
             })
         end
     end

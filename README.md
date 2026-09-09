@@ -8,7 +8,7 @@ It answers the two questions a loot council asks all night: *has this raider alr
 
 1. **One TMB list on the tooltip, inside Gargul's own section.** Gargul's "TMB Wish List" block is rebuilt from TMBExport's data (names, priorities, `(OS)` markers) in Gargul's own format, honouring Gargul's TMB settings (raiders-only filter, max entries, OS sorting, raid-group suffix). Gargul's tier / note / prio-list lines above it are kept. TMBExport's separate "TMB Wishlist" block is switched off so nothing is shown twice.
 2. **Greys out names that already got the item.** Once Gargul has awarded an item to a raider, that raider's line in the section turns grey. Every other name is class-coloured (classes come from TMBExport), so grey means exactly one thing: received.
-3. **`/lchelp graph`** opens a bar graph of how many *non-OS wishlist* items each raider has been awarded: `4 (22)` = 4 this phase (current wishlist), 22 all time. Hover a bar to see the items and dates.
+3. **`/lchelp graph`** opens a bar graph of how many *non-OS wishlist* items each raider has been awarded: `4 / 2 (22)` = 4 against the current wishlist, 2 tier tokens, 22 all time. Hover a bar to see the items, the tokens and their dates.
 4. **Every rare and epic item that dropped, per raid week.** The graph page's right-hand column lists the raid's drops newest first, with **who picked each one up** and **who it was assigned to** in separate columns. It rolls over at the Tuesday raid reset and the arrows step back through earlier weeks. Nothing is sent between addons: the data comes from loot messages every client in the raid already receives.
 5. **LootCheck owns the wishlist data.** Paste That's My BIS CSV exports into LootCheck as named imports ("raids") and pick the active one from a dropdown (`/lchelp imports`). "Is this on their wishlist?" is answered from the active import, not Gargul's own TMB import, so a stale Gargul import in a PUG does not skew the tooltip or the numbers. "Was it awarded?" comes from Gargul's own award history. While no import exists, TMBExport's data is used as a fallback if that addon is installed.
 
@@ -185,6 +185,17 @@ Set a date yourself when one is announced, and it is remembered — no addon upd
 ```
 
 ## How the graph counts
+
+Each row reads `4 / 2 (22)`:
+
+| | |
+|---|---|
+| **4** | wishlist items awarded, against the wishlist you currently have imported (or the selected phase) |
+| **2** | tier tokens awarded over the same window, in gold |
+| **(22)** | all-time wishlisted items, across every phase |
+
+Tier tokens are counted from Gargul's award history rather than through the wishlist, so a token handed to someone who never wishlisted it still counts — the question is how much tier they have had, not whether they asked. The token ids come from the same set-piece map used when importing, so the two cannot disagree. Hovering a bar lists the tokens with their dates.
+
 
 Each bar shows the **current wishlist** count: Gargul awards that match the raider's *current* wishlist data. Despite the old wording, this was never a date range. The number in parentheses is **all time**: every wishlisted item they have ever received, across phases. `4 (22)` = 4 this phase, 22 overall. Hover a bar for both lists.
 
