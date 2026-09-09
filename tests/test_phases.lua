@@ -107,6 +107,18 @@ click(page.nextPhase)
 assert(LootCheck.db.settings.graphPhase == "P1", "stepped to P1")
 assert(page.phaseLabel:GetText():find("P1", 1, true), page.phaseLabel:GetText())
 assert(page.header2:GetText():find("P1", 1, true), "the column follows the phase")
+assert(page.header2:GetText():find("T4", 1, true),
+    "and names the tier that phase drops: " .. page.header2:GetText())
+
+-- Only P1's own tier counts towards its token column
+for _, row in ipairs(LootCheck.Graph._rows) do
+    if row:IsShown() and row.data then
+        for _, item in ipairs(row.data.tokenItems or {}) do
+            assert(LootCheck:TokenTier(item.itemID) == "T4",
+                ("%s counted towards P1"):format(tostring(item.itemName)))
+        end
+    end
+end
 
 local p1Total = 0
 for _, row in ipairs(LootCheck.Graph._rows) do

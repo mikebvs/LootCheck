@@ -196,6 +196,18 @@ Each row reads `4 / 2 (22)`:
 
 Tier tokens are counted from Gargul's award history rather than through the wishlist, so a token handed to someone who never wishlisted it still counts — the question is how much tier they have had, not whether they asked. The token ids come from the same set-piece map used when importing, so the two cannot disagree. Hovering a bar lists the tokens with their dates.
 
+**A phase counts only the tier it drops:**
+
+| Phase | Tier | Tokens |
+|---|---|---|
+| P1 | T4 | Fallen Hero / Defender / Champion |
+| P2 | T5 | Vanquished Hero / Defender / Champion |
+| P3, P4, P5 | T6 | Forgotten Vanquisher / Conqueror / Protector |
+
+With no phase selected, every tier counts. Zul'Aman and Sunwell keep the T6 tokens: Sunwell upgrades those pieces rather than introducing new ones.
+
+The tier is read from the word after "of the" in the token's name, not by searching for a substring — T5 is *Vanquished* and T6 is *Forgotten Vanquisher*, so a substring match would put half of T6 into T5.
+
 
 Each bar shows the **current wishlist** count: Gargul awards that match the raider's *current* wishlist data. Despite the old wording, this was never a date range. The number in parentheses is **all time**: every wishlisted item they have ever received, across phases. `4 (22)` = 4 this phase, 22 overall. Hover a bar for both lists.
 

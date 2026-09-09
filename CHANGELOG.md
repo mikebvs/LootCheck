@@ -3,6 +3,19 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.5.1] - 2026-09-08
+
+### Changed
+
+- The tier token count now follows the selected phase's tier: P1 counts only
+  T4 (Fallen), P2 only T5 (Vanquished), and P3 to P5 only T6 (Forgotten), since
+  Zul'Aman and Sunwell keep the T6 tokens. With no phase selected every tier
+  counts, as before. The column heading and the row tooltip name the tier.
+
+The date window alone would not have been enough: awards from before LootCheck
+was installed, or a phase date corrected after the fact, could otherwise let a
+T6 token count towards P1.
+
 ## [1.5.0] - 2026-09-08
 
 ### Added
@@ -222,6 +235,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.5.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.5.1
 [1.5.0]: https://github.com/mikebvs/LootCheck/releases/tag/v1.5.0
 [1.4.5]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.5
 [1.4.4]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.4

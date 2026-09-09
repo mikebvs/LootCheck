@@ -451,6 +451,42 @@ function LC:TokenName(itemID)
     return self:TokenIDs()[tonumber(itemID) or -1]
 end
 
+-- Which tier a token belongs to, taken from the word after "of the":
+--
+--   T4  Helm of the Fallen Hero / Defender / Champion
+--   T5  Helm of the Vanquished Hero / Defender / Champion
+--   T6  Helm of the Forgotten Vanquisher / Conqueror / Protector
+--
+-- T5 says "Vanquished" and T6 "Forgotten Vanquisher", so a substring search
+-- would confuse the two. Reading the one word that follows "of the" cannot.
+local TIER_BY_QUALIFIER = {
+    Fallen = "T4",
+    Vanquished = "T5",
+    Forgotten = "T6",
+}
+
+--- The tier each content phase drops. Zul'Aman and Sunwell keep the T6 tokens:
+--- Sunwell upgrades those pieces rather than introducing new ones.
+LC.PHASE_TIERS = {
+    P1 = "T4", -- Karazhan, Gruul, Magtheridon
+    P2 = "T5", -- Serpentshrine Cavern, Tempest Keep
+    P3 = "T6", -- Black Temple, Mount Hyjal
+    P4 = "T6", -- Zul'Aman
+    P5 = "T6", -- Sunwell Plateau
+}
+
+function LC:TokenTier(itemID)
+    local name = self:TokenName(itemID)
+    if not name then return nil end
+    return TIER_BY_QUALIFIER[name:match("of the (%a+)") or ""]
+end
+
+--- The tier to count for a phase, or nil when every tier counts
+function LC:TierForPhase(phaseKey)
+    if not phaseKey or phaseKey == "" then return nil end
+    return self.PHASE_TIERS[phaseKey]
+end
+
 -- Rewrite a wishlist entries list in place: any entry whose item_name
 -- matches a known set piece is converted to the corresponding token
 -- (item_id, item_name, source_name, instance_name).

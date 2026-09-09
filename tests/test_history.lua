@@ -170,4 +170,71 @@ if victim then
     LootCheck.Data:Invalidate()
 end
 
+section("tokens are classified by tier, and a phase counts only its own")
+-- T5 is "Vanquished", T6 is "Forgotten Vanquisher": a substring search would
+-- put half of T6 into T5, so the classification reads the word after "of the"
+local tiers = {}
+for id, name in pairs(LootCheck:TokenIDs()) do
+    local tier = LootCheck:TokenTier(id)
+    assert(tier, ("no tier for %s (%s)"):format(name, tostring(id)))
+    tiers[tier] = (tiers[tier] or 0) + 1
+
+    local qualifier = name:match("of the (%a+)")
+    if qualifier == "Fallen" then
+        assert(tier == "T4", name .. " should be T4")
+    elseif qualifier == "Vanquished" then
+        assert(tier == "T5", name .. " should be T5")
+    elseif qualifier == "Forgotten" then
+        assert(tier == "T6", name .. " should be T6, got " .. tier)
+    else
+        error("unexpected token name: " .. name)
+    end
+end
+assert(tiers.T4 and tiers.T5 and tiers.T6, "all three tiers are represented")
+print(("tokens by tier: T4 %d, T5 %d, T6 %d"):format(tiers.T4, tiers.T5, tiers.T6))
+
+-- The names that trip a naive match
+assert(LootCheck:TokenTier(29764) == "T4", "Pauldrons of the Fallen Defender is T4")
+for id, name in pairs(LootCheck:TokenIDs()) do
+    if name:find("Vanquished", 1, true) then
+        assert(LootCheck:TokenTier(id) == "T5", name .. " is T5, not T6")
+    end
+    if name:find("Vanquisher", 1, true) then
+        assert(LootCheck:TokenTier(id) == "T6", name .. " is T6, not T5")
+    end
+end
+
+assert(LootCheck:TierForPhase("P1") == "T4", "P1 drops T4")
+assert(LootCheck:TierForPhase("P2") == "T5", "P2 drops T5")
+assert(LootCheck:TierForPhase("P3") == "T6", "P3 drops T6")
+assert(LootCheck:TierForPhase("P4") == "T6", "Zul'Aman keeps T6")
+assert(LootCheck:TierForPhase("P5") == "T6", "Sunwell upgrades T6 rather than adding tokens")
+assert(LootCheck:TierForPhase("") == nil and LootCheck:TierForPhase(nil) == nil,
+    "no phase means every tier counts")
+
+-- Asking for one tier must return only that tier's tokens
+for _, tier in ipairs({ "T4", "T5", "T6" }) do
+    local rows = LootCheck.Data:WishlistAwardCounts({ tokenTier = tier })
+    local seen = 0
+    for _, r in ipairs(rows) do
+        for _, item in ipairs(r.tokenItems or {}) do
+            assert(LootCheck:TokenTier(item.itemID) == tier,
+                ("%s counted towards %s"):format(tostring(item.itemName), tier))
+            seen = seen + 1
+        end
+    end
+    print(("  %s tokens awarded: %d"):format(tier, seen))
+end
+
+-- The tiers partition the unfiltered total: nothing counted twice or lost
+local total = 0
+for _, r in ipairs(LootCheck.Data:WishlistAwardCounts({})) do total = total + (r.tokens or 0) end
+local summed = 0
+for _, tier in ipairs({ "T4", "T5", "T6" }) do
+    for _, r in ipairs(LootCheck.Data:WishlistAwardCounts({ tokenTier = tier })) do
+        summed = summed + (r.tokens or 0)
+    end
+end
+assert(summed == total, ("the tiers should add up to the whole: %d vs %d"):format(summed, total))
+
 print("\nHISTORY TESTS PASSED")

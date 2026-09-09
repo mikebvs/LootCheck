@@ -269,6 +269,8 @@ function Graph:Refresh()
             days = settings.graphDays,
             from = from,
             to = to,
+            -- A phase only drops its own tier's tokens
+            tokenTier = phase and LC:TierForPhase(phase.key) or nil,
             groupOnly = settings.graphGroupOnly,
         })
     end
@@ -291,8 +293,9 @@ function Graph:Refresh()
     frame.subtitle:SetText(("%s%d raiders - %d wishlist items awarded %s, %d all time"):format(
         db and (db.source .. ": ") or "", #list, total, window, allTime))
 
+    local tier = phase and LC:TierForPhase(phase.key) or nil
     frame.header2:SetText(phase
-        and ("Awarded: %s / tokens (all time)"):format(phase.key)
+        and ("Awarded: %s / %s tokens (all time)"):format(phase.key, tier or "no")
         or "Awarded: wishlist / tokens (all time)")
 
     for i, r in ipairs(list) do
@@ -382,16 +385,22 @@ function Graph:ShowRowTooltip(row)
         end
     end
 
+    -- Which tokens count depends on the phase: a phase only drops its own tier
+    local tokenTier = LC.db.settings.graphPhase and LC:TierForPhase(LC.db.settings.graphPhase) or nil
+
     if (r.tokens or 0) > 0 then
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine(("%d tier token%s awarded:"):format(r.tokens, r.tokens == 1 and "" or "s"), 1, 0.82, 0)
+        GameTooltip:AddLine(("%d %stier token%s awarded:"):format(
+            r.tokens, tokenTier and (tokenTier .. " ") or "", r.tokens == 1 and "" or "s"), 1, 0.82, 0)
         for _, item in ipairs(r.tokenItems or {}) do
             local when = (item.timestamp and item.timestamp > 0) and date("%Y-%m-%d", item.timestamp) or ""
             GameTooltip:AddDoubleLine(item.itemLink or item.itemName or "?", when, 1, 0.82, 0, 0.6, 0.6, 0.6)
         end
     else
         GameTooltip:AddLine(" ")
-        GameTooltip:AddLine("No tier tokens awarded.", 0.7, 0.7, 0.7)
+        GameTooltip:AddLine(tokenTier
+            and ("No %s tier tokens awarded."):format(tokenTier)
+            or "No tier tokens awarded.", 0.7, 0.7, 0.7)
     end
 
     -- Everything else they ever received off a wishlist, outside this window

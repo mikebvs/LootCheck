@@ -477,11 +477,16 @@ end
 --- counts below. Read straight from Gargul's award history rather than through
 --- the wishlist, so a token handed to someone who never wishlisted it still
 --- counts: the question is "how much tier have they had", not "did they ask".
-local function ComputeTokens(self, from, to)
+--- `tier` limits the count to one tier's tokens ("T4"), so a phase shows only
+--- the tokens that phase actually drops. The date window alone is not enough:
+--- awards from before LootCheck was installed, or a phase date corrected after
+--- the fact, would otherwise let a T6 token count towards P1.
+local function ComputeTokens(self, from, to, tier)
     local counts, items = {}, {}
     local awards = self:AwardIndex()
 
     for tokenID, tokenName in pairs(LC:TokenIDs()) do
+        if not tier or LC:TokenTier(tokenID) == tier then
         for norm, list in pairs(awards[tokenID] or {}) do
             for _, a in ipairs(list) do
                 local when = a.timestamp or 0
@@ -493,9 +498,11 @@ local function ComputeTokens(self, from, to)
                         itemName = tokenName,
                         itemLink = a.itemLink,
                         timestamp = when,
+                        tier = LC:TokenTier(tokenID),
                     })
                 end
             end
+        end
         end
     end
 
@@ -527,7 +534,7 @@ function Data:WishlistAwardCounts(opts)
     local windowed = (from and from > 0) or to
     local matches = windowed and ComputeMatches(self, from or 0, to) or allMatches
     local history = self:History()
-    local tokenCounts, tokenItems = ComputeTokens(self, from or 0, to)
+    local tokenCounts, tokenItems = ComputeTokens(self, from or 0, to, opts.tokenTier)
 
     local list = {}
     for norm, r in pairs(self:Roster()) do
