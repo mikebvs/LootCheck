@@ -114,8 +114,16 @@ function Window:ApplyBounds()
         if frame.SetMaxResize then frame:SetMaxResize(MAX_WIDTH, MAX_HEIGHT) end
     end
 
-    if width < minW or height < minH then
-        self:Resize(width, height) -- Clamp raises it to the minimum
+    -- Measure the frame rather than trusting the tracked numbers. The two can
+    -- disagree - the client resizes the frame itself in ways nothing here sees
+    -- - and it is the frame's real size the client checks against the bounds
+    -- when sizing starts. Comparing the tracked values instead left the very
+    -- case this guards against undetected.
+    local realW = (frame.GetWidth and frame:GetWidth()) or width
+    local realH = (frame.GetHeight and frame:GetHeight()) or height
+
+    if realW < minW or realH < minH or width < minW or height < minH then
+        self:Resize(math.max(realW, width), math.max(realH, height))
     end
 end
 
@@ -238,11 +246,11 @@ end
 
 --- Pin the top-left corner before sizing from the bottom-right one.
 ---
---- A frame anchored by its centre keeps that centre fixed, so dragging the
---- bottom-right corner moves the top-left corner the other way and the frame
---- grows in *both* directions at twice the speed of the cursor. Re-anchoring
---- to TOPLEFT first pins the corner that should stay still, which is the
---- standard way to make a corner-resizable frame behave.
+--- A frame anchored by its centre keeps that centre fixed while a corner is
+--- dragged, so both corners move and the frame resizes at twice the speed of
+--- the cursor. Anchoring to TOPLEFT first pins the corner that should stay
+--- still, which is the standard way to make a corner-resizable frame behave
+--- and keeps the position saved afterwards meaningful.
 local function AnchorTopLeft()
     if not frame then return end
 

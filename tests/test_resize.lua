@@ -85,6 +85,15 @@ assert(heldH + 44 >= floorMinH, "nor height, got " .. (heldH + 44))
 Window:ApplyBounds()
 assert(select(1, Window:ContentSize()) >= floorMinW, "and bounds keep it there")
 
+-- The client can resize the frame without anything here seeing it, so the
+-- tracked numbers and the frame's real size can disagree. It is the frame the
+-- client checks against the bounds, so that is what has to be measured.
+frame._width, frame._height = 200, 150 -- as if the client had shrunk it
+Window:ApplyBounds()
+assert(frame:GetWidth() >= floorMinW,
+    "a frame smaller than the bounds is raised even when the tracked size looks fine, got " .. frame:GetWidth())
+assert(frame:GetHeight() >= floorMinH, "and its height, got " .. frame:GetHeight())
+
 section("sizes are clamped, so a saved one cannot outgrow the screen")
 UIParent:SetSize(1200, 800)
 Window:Show("audit")

@@ -3,6 +3,17 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.4.4] - 2026-09-08
+
+### Fixed
+
+- The check that keeps the window inside its resize bounds compared the
+  addon's own tracked size rather than measuring the frame. Those two can
+  disagree, and it is the frame's real size the client tests against the bounds
+  when sizing begins, so the exact case the check existed to prevent - a frame
+  smaller than its minimum being snapped up the instant the grip is grabbed -
+  could pass unnoticed.
+
 ## [1.4.3] - 2026-09-08
 
 ### Fixed
@@ -186,6 +197,7 @@ First public release.
 - LootCheck never writes to Gargul's data.
 - It deliberately avoids Blizzard's `UIDropDownMenu` and `StaticPopupDialogs`: both taint the secure UI, which stopped the game menu's Log Out button working during development. The test suite fails if either is reintroduced.
 
+[1.4.4]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.4
 [1.4.3]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.3
 [1.4.2]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.2
 [1.4.1]: https://github.com/mikebvs/LootCheck/releases/tag/v1.4.1
