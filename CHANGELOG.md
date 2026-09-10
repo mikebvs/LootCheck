@@ -3,6 +3,28 @@
 All notable changes to LootCheck are recorded here.
 This project follows [Semantic Versioning](https://semver.org/).
 
+## [1.8.0] - 2026-09-10
+
+### Changed
+
+- The Character Sheet is no longer a page of its own. It is now a popout
+  column on the right of the Wishlist Awards page, opened by the **Character**
+  button (or `/lchs`, or clicking a raider's bar as before). Opening it widens
+  the window by the width of the column and closing it gives that width back,
+  so the bars and the raid drops are never squeezed to make room, and a
+  raider's wishlist can be read next to both. The **Character** button on the
+  home page is gone with the page.
+
+### Added
+
+- A **Gear only** box on the raid drops list, next to *Include blue items*. It
+  hides everything that is not worn or wielded - gems, crafting reagents,
+  recipes, bags - and keeps tier tokens, which are not equippable and so are
+  recognised by name rather than by asking the client. Like the blue-items
+  box it only changes what is shown, never what is recorded. An item the
+  client has not cached yet stays on the list rather than being hidden on a
+  guess.
+
 ## [1.7.1] - 2026-09-09
 
 ### Added

@@ -57,6 +57,19 @@ function Window:ContentSize()
     return width, height - HEADER
 end
 
+--- The whole window, title bar included. Pages that grow or shrink it (the
+--- wishlist graph's character popout) resize relative to this.
+function Window:Size()
+    return width, height
+end
+
+--- The page the window is on, whether or not it is visible. Window:Current()
+--- answers nil while the window is hidden, which is right for callers asking
+--- what the user is looking at and wrong for anything working out sizes.
+function Window:CurrentKey()
+    return current
+end
+
 --- One size for the whole window, not one per page: drag it on any page and
 --- every other page opens at that size. Sizes from before this was shared were
 --- stored per page, so the largest of them is carried over rather than lost.
@@ -82,14 +95,27 @@ local function SavedSize()
 end
 
 --- The smallest the window may be: whatever the most demanding page needs.
---- That is the wishlist graph, which has to fit two columns side by side, so
---- every page can be switched to without the window having to change size.
+--- That is the wishlist graph, which has to fit two columns side by side (and
+--- a third while its character popout is out), so every page can be switched
+--- to without the window having to change size.
+---
+--- A page may give either number as a function when what it needs depends on
+--- something the user can change, which is evaluated here every time rather
+--- than being read once at registration.
+local function Demand(value)
+    if type(value) == "function" then
+        local ok, result = pcall(value)
+        return (ok and tonumber(result)) or 0
+    end
+    return tonumber(value) or 0
+end
+
 function Window:MinimumSize()
     local w, h = MIN_WIDTH, MIN_HEIGHT
     for _, def in pairs(pages) do
-        w = math.max(w, def.minWidth or 0)
+        w = math.max(w, Demand(def.minWidth))
         -- Pages state what their *content* needs; the title bar sits on top
-        h = math.max(h, (def.minHeight or 0) + HEADER)
+        h = math.max(h, Demand(def.minHeight) + HEADER)
     end
     return w, h
 end
@@ -230,7 +256,10 @@ local function ApplyLayout()
     end
 end
 
-local function SaveSize()
+--- Remember the current size as the one every page opens at. Called when a
+--- drag ends, and by anything that changes the size deliberately rather than
+--- as a consequence of a page being shown.
+function Window:SaveSize()
     local saved = SavedSize()
     saved.width, saved.height = width, height
 end
@@ -398,7 +427,7 @@ local function Build()
         f:SetScript("OnUpdate", nil)
         f:StopMovingOrSizing() -- harmless if nothing was moving
 
-        SaveSize()
+        Window:SaveSize()
         SavePosition() -- growing from a corner leaves the anchor where it was
         Window:Trace("drag stop, after")
     end)

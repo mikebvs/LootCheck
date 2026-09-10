@@ -1,8 +1,14 @@
 --[[
     LootCheck - Sheet.lua
 
-    The "Character Sheet" page: pick a raider from the wishlist data and see
-    what they want in each equipment slot, with the priority they gave it.
+    The character sheet: pick a raider and see what they want in each equipment
+    slot, with the priority they gave it.
+
+    This is not a page of its own. It is the popout column on the right of the
+    Wishlist Awards page (Graph.lua), which owns the button that opens it and
+    hands this module a container to fill, exactly as it does for Drops.lua.
+    Keeping it there means a raider's sheet can be read next to their bar and
+    the week's drops rather than instead of them.
 
     Working out an item's slot takes two routes:
 
@@ -11,7 +17,7 @@
         shoulder - and the token names come from TierTokens.lua, so this is
         exact rather than a guess.
       * Everything else asks the client, which only knows about items it has
-        cached. Uncached items are requested and the page redraws when the
+        cached. Uncached items are requested and the panel redraws when the
         data arrives (GET_ITEM_INFO_RECEIVED); until then they sit under
         "Slot not known yet" rather than being dropped.
 ]]
@@ -20,17 +26,16 @@ local LC = LootCheck
 local Sheet = {}
 LC.Sheet = Sheet
 
-local PAGE = "sheet"
-local WIDTH, HEIGHT = 640, 560
-local MARGIN = 22
-local ROW_HEIGHT, ROWS, HEAD_HEIGHT = 18, 22, 14
-local RESERVED = 92
-local SLOT_WIDTH, PRIO_WIDTH = 96, 74
+local PAGE = "graph" -- the page the panel lives on
+local ROW_HEIGHT, ROWS, HEAD_HEIGHT = 18, 21, 14
+local RESERVED = 52 -- picker row, column headings and padding
+local SLOT_WIDTH, PRIO_WIDTH = 92, 44
+local PICKER_WIDTH = 150
 
-local frame
+local panel -- the container Graph.lua hands us
 local rows = {}
 Sheet._rows = rows -- exposed for tests
-Sheet.rowCount = ROWS
+Sheet.rowCount = ROWS -- recalculated from the container height, see Layout
 
 --- Character sheet order, not alphabetical: this is meant to be read like the
 --- paper doll, so a missing head slot is obvious at a glance.
@@ -102,6 +107,22 @@ end
 -- Slots
 ------------------------------------------------------------------------------
 
+--- The equipment location the client has for an item, or nil when it has not
+--- cached it yet. Shared with Drops:IsGear, which asks the same question for a
+--- different reason.
+---
+--- itemEquipLoc is GetItemInfo's 9th return. Naming it by position in a pcall's
+--- result list is one blank away from silently reading itemStackCount instead,
+--- which is what happened here, so select() says which value is wanted rather
+--- than leaving it to be counted.
+function Sheet:EquipLocation(itemID)
+    if type(GetItemInfo) ~= "function" then return nil end
+
+    local ok, equipLoc = pcall(function() return select(9, GetItemInfo(itemID)) end)
+    if ok and type(equipLoc) == "string" then return equipLoc end
+    return nil
+end
+
 --- The slot an item belongs in, or "unknown" when the client cannot say yet.
 function Sheet:SlotFor(itemID, itemName)
     local tokenName = LC:TokenName(itemID)
@@ -110,16 +131,8 @@ function Sheet:SlotFor(itemID, itemName)
         return TOKEN_SLOTS[tokenName:match("^(%a+)") or ""] or "unknown"
     end
 
-    if type(GetItemInfo) == "function" then
-        -- itemEquipLoc is GetItemInfo's 9th return. Naming it by position in a
-        -- pcall's result list is one blank away from silently reading
-        -- itemStackCount instead, which is what happened here, so select() says
-        -- which value is wanted rather than leaving it to be counted.
-        local ok, equipLoc = pcall(function() return select(9, GetItemInfo(itemID)) end)
-        if ok and type(equipLoc) == "string" and EQUIP_LOC[equipLoc] then
-            return EQUIP_LOC[equipLoc]
-        end
-    end
+    local equipLoc = self:EquipLocation(itemID)
+    if equipLoc and EQUIP_LOC[equipLoc] then return EQUIP_LOC[equipLoc] end
 
     -- Names follow the same shape as the tokens often enough to be worth a try
     if type(itemName) == "string" then
@@ -130,8 +143,8 @@ function Sheet:SlotFor(itemID, itemName)
     return "unknown"
 end
 
---- Ask the client to load anything it has not cached, so the page fills in.
-local function RequestUncached(itemIDs)
+--- Ask the client to load anything it has not cached, so the panel fills in.
+function Sheet:RequestUncached(itemIDs)
     if type(C_Item) ~= "table" or type(C_Item.RequestLoadItemDataByID) ~= "function" then return end
     for itemID in pairs(itemIDs) do
         pcall(C_Item.RequestLoadItemDataByID, itemID)
@@ -181,7 +194,7 @@ function Sheet:Rows(norm)
         bySlot[slot] = bySlot[slot] or {}
         tinsert(bySlot[slot], entry)
     end
-    RequestUncached(uncached)
+    self:RequestUncached(uncached)
 
     local out = {}
     for _, slot in ipairs(self.SLOTS) do
@@ -220,38 +233,41 @@ function Sheet:Summary(norm)
 end
 
 ------------------------------------------------------------------------------
--- Page
+-- The panel on the Wishlist Awards page
 ------------------------------------------------------------------------------
 
-local function BuildPage(page)
-    frame = page
+function Sheet:BuildPanel(container)
+    panel = container
 
-    local picker = LC.Window:CreateDropdown(page, "LootCheckSheetFramePicker", {
-        width = 168,
+    local picker = LC.Window:CreateDropdown(container, "LootCheckSheetPicker", {
+        width = PICKER_WIDTH,
         items = function() return Sheet:Characters() end,
         selected = function() return Sheet:Selected() end,
         onSelect = function(value) Sheet:Select(value) end,
         emptyText = "No wishlist data",
     })
-    picker:SetPoint("TOPLEFT", MARGIN, -6)
-    page.picker = picker
+    picker:SetPoint("TOPLEFT", 0, 0)
+    container.picker = picker
 
-    page.summary = LC.Window:Text(page, "GameFontHighlightSmall")
-    page.summary:SetPoint("LEFT", picker, "RIGHT", 10, 0)
-    page.summary:SetPoint("RIGHT", page, "RIGHT", -MARGIN, 0)
+    -- Right-aligned and bounded, so a raider with a long wishlist cannot push
+    -- the count out through the edge of the column
+    container.summary = LC.Window:Text(container, "GameFontHighlightSmall")
+    container.summary:SetPoint("LEFT", picker, "RIGHT", 6, 0)
+    container.summary:SetPoint("RIGHT", container, "RIGHT", -2, 0)
+    container.summary:SetJustifyH("RIGHT")
 
-    local inset = LC.Window:CreateInset(page, "LootCheckSheetFrameInset")
+    local inset = LC.Window:CreateInset(container, "LootCheckSheetInset")
     inset:SetPoint("TOPLEFT", picker, "BOTTOMLEFT", -4, -6)
-    inset:SetPoint("BOTTOMRIGHT", -MARGIN, 18)
-    page.inset = inset
+    inset:SetPoint("BOTTOMRIGHT", 0, 0)
+    container.inset = inset
 
-    local scroll = CreateFrame("ScrollFrame", "LootCheckSheetFrameScroll", inset, "FauxScrollFrameTemplate")
+    local scroll = CreateFrame("ScrollFrame", "LootCheckSheetScroll", inset, "FauxScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 6, -6)
     scroll:SetPoint("BOTTOMRIGHT", -28, 6)
     scroll:SetScript("OnVerticalScroll", function(self, offset)
-        FauxScrollFrame_OnVerticalScroll(self, offset, ROW_HEIGHT, function() Sheet:Refresh() end)
+        FauxScrollFrame_OnVerticalScroll(self, offset, ROW_HEIGHT, function() Sheet:RefreshPanel() end)
     end)
-    page.scroll = scroll
+    container.scroll = scroll
 
     local head = CreateFrame("Frame", nil, inset)
     head:SetHeight(HEAD_HEIGHT)
@@ -273,20 +289,20 @@ local function BuildPage(page)
     head.item:SetPoint("LEFT", head.slot, "RIGHT", 6, 0)
     head.item:SetPoint("RIGHT", head.prio, "LEFT", -6, 0)
     head.item:SetText("Wishlist item")
-    page.head = head
+    container.head = head
 
-    page.rowParent = inset
+    container.rowParent = inset
 
-    page.empty = LC.Window:Text(inset, "GameFontHighlight", WIDTH - MARGIN * 2 - 60)
-    page.empty:SetPoint("TOPLEFT", 12, -12 - HEAD_HEIGHT)
-    page.empty:SetPoint("RIGHT", inset, "RIGHT", -12, 0)
-    page.empty:Hide()
+    container.empty = LC.Window:Text(inset, "GameFontHighlight", 200)
+    container.empty:SetPoint("TOPLEFT", 12, -12 - HEAD_HEIGHT)
+    container.empty:SetPoint("RIGHT", inset, "RIGHT", -12, 0)
+    container.empty:Hide()
 end
 
 local function GetRow(index)
     if rows[index] then return rows[index] end
 
-    local inset = frame.rowParent
+    local inset = panel.rowParent
     local row = CreateFrame("Frame", nil, inset)
     row:SetHeight(ROW_HEIGHT)
     row:SetPoint("TOPLEFT", 8, -6 - HEAD_HEIGHT - (index - 1) * ROW_HEIGHT)
@@ -332,9 +348,10 @@ local function GetRow(index)
     return row
 end
 
-function Sheet:Layout(page, w, h)
-    self.rowCount = LC.Window:RowCount(h - RESERVED, ROW_HEIGHT, 3)
-    self:Refresh()
+--- Fit as many slots as the column is now tall enough for
+function Sheet:Layout(height)
+    self.rowCount = LC.Window:RowCount((height or 0) - RESERVED, ROW_HEIGHT, 3)
+    self:RefreshPanel()
 end
 
 local function ItemText(entry)
@@ -351,26 +368,25 @@ local function ItemText(entry)
     return name .. suffix
 end
 
-function Sheet:Refresh()
-    if not frame then return end
+function Sheet:RefreshPanel()
+    if not panel then return end
 
-    frame.picker:Refresh()
+    panel.picker:Refresh()
     local norm = self:Selected()
     local list = norm and self:Rows(norm) or {}
     self._rows_data = list
 
+    -- The picker already names the raider, so this only has to say how much of
+    -- their list is still outstanding
     if norm then
         local wanted, received = self:Summary(norm)
-        local roster = LC.Data:Roster()[norm]
-        frame.summary:SetText(("|cff%s%s|r - %d wishlist entries, %d received"):format(
-            LC:ClassHex(roster and roster.class), (roster and roster.displayName) or LC:Capitalize(norm),
-            wanted, received))
+        panel.summary:SetText(("%d of %d received"):format(received, wanted))
     else
-        frame.summary:SetText("")
+        panel.summary:SetText("")
     end
 
-    FauxScrollFrame_Update(frame.scroll, #list, self.rowCount, ROW_HEIGHT)
-    local offset = FauxScrollFrame_GetOffset(frame.scroll) or 0
+    FauxScrollFrame_Update(panel.scroll, #list, self.rowCount, ROW_HEIGHT)
+    local offset = FauxScrollFrame_GetOffset(panel.scroll) or 0
 
     for i = 1, self.rowCount do
         local data, row = list[offset + i], GetRow(i)
@@ -403,12 +419,12 @@ function Sheet:Refresh()
     end
 
     if #list == 0 then
-        frame.empty:SetText(norm
+        panel.empty:SetText(norm
             and "This raider has no wishlist entries."
             or "No wishlist data. Go back and open Wishlist Data to paste a That's My BIS CSV export.")
-        frame.empty:Show()
+        panel.empty:Show()
     else
-        frame.empty:Hide()
+        panel.empty:Hide()
     end
 end
 
@@ -425,28 +441,40 @@ function Sheet:ShowRowTooltip(row)
     GameTooltip:Show()
 end
 
+--- Only worth redrawing while the popout is actually on screen.
 function Sheet:RefreshIfShown()
-    if LC.Window and LC.Window:IsShowing(PAGE) then self:Refresh() end
-end
-
---- Open the page, optionally on a particular raider
-function Sheet:Open(norm)
-    if norm and norm ~= "" then Settings().sheetCharacter = norm end
-    LC.Data:Invalidate()
-    LC.Window:Show(PAGE)
-end
-
-function Sheet:Toggle(norm)
-    if LC.Window:IsShowing(PAGE) and not norm then
-        LC.Window:Hide()
-    else
-        self:Open(norm)
+    if LC.Window and LC.Window:IsShowing(PAGE) and LC.Graph and LC.Graph:SheetOpen() then
+        self:RefreshPanel()
     end
 end
 
+------------------------------------------------------------------------------
+-- Getting to it
+------------------------------------------------------------------------------
+
+--- Open the wishlist graph with the character popout out, optionally on a
+--- particular raider. There is no separate sheet page any more: the sheet is
+--- read next to the bars and the week's drops.
+function Sheet:Open(norm)
+    if norm and norm ~= "" then Settings().sheetCharacter = norm end
+    LC.Data:Invalidate()
+    LC.Graph:Open()
+    LC.Graph:SetSheetOpen(true)
+end
+
+function Sheet:Toggle(norm)
+    -- Named raider: always open on them, even if the popout is already out
+    if not norm and LC.Window:IsShowing(PAGE) and LC.Graph:SheetOpen() then
+        LC.Window:Hide()
+        return
+    end
+    self:Open(norm)
+end
+
 -- Item data arrives asynchronously, so a slot we could not name a moment ago
--- may be known now. A wishlist can hold hundreds of items and the event fires
--- once per item, so redraws are coalesced rather than run for each one.
+-- may be known now, and an item Drops could not tell was gear may be placed.
+-- A wishlist can hold hundreds of items and the event fires once per item, so
+-- redraws are coalesced rather than run for each one.
 local pendingRedraw = false
 
 local itemInfoFrame = CreateFrame("Frame")
@@ -454,23 +482,18 @@ itemInfoFrame:RegisterEvent("GET_ITEM_INFO_RECEIVED")
 itemInfoFrame:SetScript("OnEvent", function()
     if pendingRedraw or not (LC.Window and LC.Window:IsShowing(PAGE)) then return end
 
+    local function redraw()
+        if LC.Sheet then LC.Sheet:RefreshIfShown() end
+        if LC.Drops then LC.Drops:RefreshIfShown() end
+    end
+
     if C_Timer and C_Timer.After then
         pendingRedraw = true
         C_Timer.After(0.2, function()
             pendingRedraw = false
-            if LC.Sheet then LC.Sheet:RefreshIfShown() end
+            redraw()
         end)
-    elseif LC.Sheet then
-        LC.Sheet:RefreshIfShown()
+    else
+        redraw()
     end
 end)
-
-LC.Window:RegisterPage(PAGE, {
-    title = "LootCheck - Character Sheet",
-    frameName = "LootCheckSheetFrame",
-    width = WIDTH,
-    height = HEIGHT,
-    build = BuildPage,
-    layout = function(page, w, h) Sheet:Layout(page, w, h) end,
-    onShow = function() Sheet:Refresh() end,
-})

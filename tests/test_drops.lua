@@ -10,6 +10,7 @@ local function reset()
     Drops:Invalidate()
     Drops.weekOffset = 0
     LootCheck.db.settings.dropsIncludeRare = false
+    LootCheck.db.settings.dropsGearOnly = false
 end
 
 local function rowTexts()
@@ -211,6 +212,69 @@ assert(LootCheck.db.settings.dropsIncludeRare == true, "the box writes the setti
 assert(#rowTexts() == 2, "and the blue shows up")
 panel.includeRare:SetChecked(false)
 click(panel.includeRare)
+
+section("gear is told from gems and reagents by where the client says it goes")
+reset()
+local gearWeek = Drops:WeekStart() + 3600
+SetTestItems({
+    [32837] = { name = "Warglaive of Azzinoth", equipLoc = "INVTYPE_WEAPONMAINHAND" },
+    [32409] = { name = "Relentless Earthstorm Diamond", equipLoc = "" }, -- a gem
+    [23572] = { name = "Primal Nether", equipLoc = "" },                 -- a reagent
+    [21841] = { name = "Netherweave Bag", equipLoc = "INVTYPE_BAG" },
+})
+
+assert(Drops:IsGear(32837) == true, "a weapon is gear")
+assert(Drops:IsGear(32409) == false, "a gem is not")
+assert(Drops:IsGear(23572) == false, "nor is a crafting reagent")
+assert(Drops:IsGear(21841) == false, "nor is a bag")
+
+-- Tier tokens cannot be equipped, so the client has no slot for them; they are
+-- the most contested gear in the raid all the same
+assert(Drops:IsGear(29764) == true, "a tier token is gear even with nothing cached")
+
+-- An item the client has not loaded cannot be judged either way, and saying so
+-- is what keeps it on the list instead of it vanishing
+assert(Drops:IsGear(999999) == nil, "an uncached item is not yet known either way")
+
+Drops:Record({ key = "g1", t = gearWeek, itemID = 32837, itemName = "Warglaive of Azzinoth", quality = 4 })
+Drops:Record({ key = "g2", t = gearWeek + 60, itemID = 32409, itemName = "Relentless Earthstorm Diamond", quality = 4 })
+Drops:Record({ key = "g3", t = gearWeek + 120, itemID = 23572, itemName = "Primal Nether", quality = 4 })
+Drops:Record({ key = "g4", t = gearWeek + 180, itemID = 29764, itemName = "Pauldrons of the Fallen Defender", quality = 4 })
+Drops:Record({ key = "g5", t = gearWeek + 240, itemID = 999999, itemName = "Something Uncached", quality = 4 })
+
+assert(#Drops:List({ gearOnly = false }) == 5, "everything is recorded whatever the filter shows")
+
+local gearList = Drops:List({ gearOnly = true })
+local gearNames = {}
+for _, r in ipairs(gearList) do gearNames[r.itemName] = true end
+assert(#gearList == 3, "the gem and the reagent are gone, got " .. #gearList)
+assert(gearNames["Warglaive of Azzinoth"], "worn and wielded items stay")
+assert(gearNames["Pauldrons of the Fallen Defender"], "and so do tier tokens")
+assert(gearNames["Something Uncached"], "and so does one the client cannot judge yet")
+assert(not gearNames["Relentless Earthstorm Diamond"] and not gearNames["Primal Nether"],
+    "the rest are hidden")
+
+section("the gear check box is wired to the list")
+Drops:RefreshPanel()
+assert(#rowTexts() == 5, "everything shows with the box unticked, got " .. #rowTexts())
+panel.gearOnly:SetChecked(true)
+click(panel.gearOnly)
+assert(LootCheck.db.settings.dropsGearOnly == true, "the box writes the setting")
+assert(#rowTexts() == 3, "and the list drops what is not gear, got " .. #rowTexts())
+
+-- A week whose every drop is filtered out has to say so, or it reads as a week
+-- where nothing dropped at all
+LootCheckDB.drops = {}
+Drops:Invalidate()
+Drops:Record({ key = "g6", t = gearWeek, itemID = 32409, itemName = "Relentless Earthstorm Diamond", quality = 4 })
+Drops:RefreshPanel()
+assert(#rowTexts() == 0 and panel.empty:IsShown(), "nothing left to show")
+assert(panel.empty:GetText():find("Gear only", 1, true), panel.empty:GetText())
+
+panel.gearOnly:SetChecked(false)
+click(panel.gearOnly)
+assert(#rowTexts() == 1, "unticking brings it back, without it having been re-looted")
+SetTestItems({})
 
 section("an empty week says so")
 Drops:Clear()

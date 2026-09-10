@@ -31,7 +31,7 @@ LootCheck never writes to Gargul's data. The only thing it touches in TMBExport 
 | `/lchelp grouponly` | Toggle showing only raiders currently in your group |
 | `/lchelp drops` | Open the graph page and its raid drops list (`/lchelp drops clear` forgets them) |
 | `/lchelp council` | Loot Council page: who is running LootCheck and on what version (`members` does the same) |
-| `/lchelp sheet [character]` | Character Sheet: a raider's wishlist laid out by equipment slot (`character` / `char` do the same) |
+| `/lchelp sheet [character]` | Open the graph with the character popout out: a raider's wishlist laid out by equipment slot (`character` / `char` do the same) |
 | `/lchelp contested` | Contested Items: every wishlisted item and how many raiders want it (`competition` does the same) |
 | `/lchelp phase` | Show the content phase dates, or set one (`/lchelp phase P4 2026-10-15`) |
 | `/lchelp resetsize` | Put the current page back to its designed size |
@@ -154,15 +154,17 @@ A raider counts once however many entries they have for an item, and counts as s
 
 Hovering a row also draws a line above and below it, so the eye can follow across from the item name to the counts on the right.
 
-## Character Sheet
+## Character sheet
 
-`/lchs` (or the **Character** button, or clicking a raider's bar on the graph) lays one raider's wishlist out like a paper doll: every equipment slot, what they want in it, and the rank they gave it.
+The **Character** button on the graph page (or `/lchs`, or clicking a raider's bar) pops a column out on the right that lays one raider's wishlist out like a paper doll: every equipment slot, what they want in it, and the rank they gave it.
+
+It is a popout rather than a page of its own so it can be read *next to* the bars and the week's drops, which is how the question usually comes up: this raider's bar is long, so what else are they waiting on? **Opening it widens the window** by the width of the column and closing it gives that width back, so the other two columns are never squeezed to make room. The window's minimum width follows it out and back, and only while the graph is the page on screen.
 
 - **Empty slots are shown**, because a gap is as useful to know as a want.
 - **A slot wanted several times** — three rings, say — is named once and its wants listed under it in rank order.
 - **Received items are greyed**, exactly as on the tooltip.
 - **Tier tokens are placed by name.** A token is not equippable, so the client has no slot for it; "Pauldrons of the Fallen Defender" is a shoulder, and the names come from the same map used at import, so this is exact rather than a guess.
-- **Everything else asks the client**, which only knows items it has cached. Uncached items are requested and the page redraws when the data arrives, so anything sitting under *Slot not known yet* should move up within a moment of opening the page. Nothing is dropped for being unknown.
+- **Everything else asks the client**, which only knows items it has cached. Uncached items are requested and the popout redraws when the data arrives, so anything sitting under *Slot not known yet* should move up within a moment of opening it. Nothing is dropped for being unknown.
 - **Hovering a row draws a line above and below it**, so the eye can follow across from the slot to the rank on the right.
 
 ## Loot Council
@@ -177,7 +179,7 @@ Hovering a row also draws a line above and below it, so the eye can follow acros
 
 ## Raid drops
 
-The right-hand column of the graph page lists every item that dropped in the raid, newest first.
+The middle column of the graph page lists every item that dropped in the raid, newest first.
 
 - **Where the data comes from.** Two sources, merged into one list. Gargul keeps neither: its dropped-loot ledger is in-memory only and its loot-window listener is commented out.
   - **The loot window** (`LOOT_READY` / `LOOT_OPENED`): everything sitting on the corpse, but only for whoever opened it.
@@ -185,7 +187,8 @@ The right-hand column of the graph page lists every item that dropped in the rai
 - **A chat receipt for an item already seen on a corpse fills the looter in on that row** rather than listing it twice, as long as it arrives within 6 hours of the drop.
 - **Looted by is not the same as assigned to.** Whoever had bag space picks the item up; the assignment happens later in Gargul and lands in the *Assigned* column on its own. The list shows both, and never assumes the looter is the winner.
 - **When it resets.** Weeks run from the raid reset, Tuesday on US realms. The client is asked for the exact reset time where that API exists; otherwise LootCheck falls back to the most recent Tuesday 08:00. `<` and `>` step through the last 8 weeks, which is as far back as drops are kept.
-- **What counts as a drop.** Anything of rare quality or better looted from a corpse while you are in a raid group or a raid instance. Coin and currency slots are skipped. Rares are always stored, and *Include blue items* only changes what the list shows, so ticking it later reveals blues that were recorded while it was off.
+- **What counts as a drop.** Anything of rare quality or better looted from a corpse while you are in a raid group or a raid instance. Coin and currency slots are skipped.
+- **Two filters, neither of which changes what is stored.** *Include blue items* brings rares into the list; *Gear only* takes out everything that is not worn or wielded, so gems, crafting reagents, recipes and bags drop off and tier tokens stay (a token is not equippable, so the client calls it junk, and it is checked by name instead). Both only affect what is shown, so ticking either later reveals drops recorded while it was off. An item the client has not cached yet cannot be judged, so it is left on the list and the data is requested — hiding a real drop because the cache had gone cold would be the worse mistake.
 - **Who got it.** Each drop is matched with the Gargul award (or manual received mark) of that item that followed it, so two of the same item in a week line up with the two awards that followed. Where nothing has been awarded yet, the column instead shows how many raiders have it on their wishlist.
 - **Hovering a drop** shows the item's own tooltip, wishlist section included, so the greyed-out names are right there. Shift-click links it into chat.
 

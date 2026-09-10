@@ -195,18 +195,58 @@ end
 LootCheck.Contested.rowCount = 22
 LootCheck.Contested:Refresh()
 
+-- The other way a row goes away: it stays inside the row count, but the list
+-- got shorter. That is a different loop in the refresh and it needs the same
+-- clearing, or narrowing to the group leaves a line floating over an empty row.
+SetTestGroup(names) -- a real group, so the narrowing is a real one
+LootCheck.Contested.rowCount = 40
+LootCheck.Contested:Refresh()
+local tallest = shownRows()[#shownRows()]
+local narrowed = #Contested:Rows({ groupOnly = true })
+
+if tallest and #shownRows() > narrowed then
+    tallest._scripts.OnEnter(tallest)
+    assert(tallest.guideTop:IsShown(), "guided before the list shrinks under it")
+
+    page.groupOnly:SetChecked(true)
+    click(page.groupOnly)
+    for _, row in ipairs(LootCheck.Contested._rows) do
+        if not row:IsShown() then
+            assert(not row.guideTop:IsShown(), "a row hidden by a shorter list must not keep its guide")
+        end
+    end
+    print(("%d rows narrowed to %d"):format(#LootCheck.Contested._rows, narrowed))
+    page.groupOnly:SetChecked(false)
+    click(page.groupOnly)
+else
+    print("the group filter does not shorten this data enough to test the shrink")
+end
+
+SetTestGroup({})
+LootCheck.Contested.rowCount = 22
+LootCheck.Contested:Refresh()
+
 section("the home page buttons wrap instead of running off the window")
 LootCheck.Window:Show("home")
 local home = LootCheckConfigFrame
-assert(#home.buttons >= 7, "there are enough buttons to need wrapping, got " .. #home.buttons)
+assert(#home.buttons > 0, "the home page has buttons to lay out")
 
-local total = 0
-for _, button in ipairs(home.buttons) do total = total + button.buttonWidth + 8 end
-local minWidth = LootCheck.Window:MinimumSize()
-assert(total > minWidth - 44, "this test is only meaningful while they overflow one row")
+-- Whatever the button set is, no row may be wider than the page it sits on.
+-- Widths from the narrowest the window goes up to a generous one, so a button
+-- added later cannot quietly start overflowing at some size in between.
+local floorWidth = LootCheck.Window:MinimumSize()
+for width = 300, 2000, 50 do
+    LootCheck.Config:LayoutButtons(home, width)
+    assert(home.buttonRowWidth <= width - 22 * 2,
+        ("buttons overflow at %d: widest row is %d"):format(width, home.buttonRowWidth))
+end
 
-LootCheck.Config:LayoutButtons(home, minWidth)
-assert(home.buttonRows > 1, "they wrap at the narrowest the window goes")
+LootCheck.Config:LayoutButtons(home, floorWidth)
+assert(home.buttonRowWidth <= floorWidth - 22 * 2, "and at the window's own floor")
+
+-- They do wrap when there is genuinely not room, and unwrap when there is
+LootCheck.Config:LayoutButtons(home, 300)
+assert(home.buttonRows > 1, "too narrow for one row: they wrap")
 
 LootCheck.Config:LayoutButtons(home, 2000)
 assert(home.buttonRows == 1, "and fit on one row when there is room")

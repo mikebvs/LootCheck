@@ -60,6 +60,23 @@ assert(LootCheck.Drops._rows[1].time._width >= 70,
 assert(LootCheck.Drops._rows[1].text._wordWrap == false, "drops rows must not wrap (fixed row height)")
 assert(LootCheck.Drops._rows[1].looted._width and LootCheck.Drops._rows[1].status._width,
     "drops name columns have no width")
+bounded(dropsPanel.gearLabel, "drops: gear only label")
+
+-- The Character button owns the top-right corner of the page, so the subtitle
+-- has to stop short of it rather than running underneath
+local graphWidth = select(1, LootCheck.Window:ContentSize())
+assert(LootCheckGraphFrame.subtitle._width <= graphWidth - 22 * 2 - 116,
+    "graph subtitle runs into the Character button, width " .. tostring(LootCheckGraphFrame.subtitle._width))
+
+-- The character popout is a third column on the same page: its text needs
+-- bounding too, or it runs out through the right-hand edge of the window
+LootCheck.Graph:SetSheetOpen(true)
+local sheetPanel = LootCheckGraphFrameSheet
+bounded(sheetPanel.summary, "sheet: wishlist entry count")
+assert(LootCheck.Sheet._rows[1].item._wordWrap == false, "sheet rows must not wrap (fixed row height)")
+assert(LootCheck.Sheet._rows[1].slot._width and LootCheck.Sheet._rows[1].prio._width,
+    "sheet slot and rank columns have no width")
+LootCheck.Graph:SetSheetOpen(false)
 
 LootCheck.Audit:Open()
 assert(LootCheck.Audit._rows[1].text._wordWrap == false, "audit rows must not wrap (fixed row height)")

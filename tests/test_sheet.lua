@@ -1,4 +1,5 @@
--- The Character Sheet page: a raider's wishlist laid out by equipment slot.
+-- The character sheet: a raider's wishlist laid out by equipment slot, in
+-- the popout column on the right of the wishlist graph.
 local function section(t) print("\n=== " .. t .. " ===") end
 local function click(button) button._scripts.OnClick(button) end
 local Sheet = LootCheck.Sheet
@@ -169,13 +170,63 @@ else
     print("no slot wanted more than once in this data")
 end
 
-section("the page renders, with the rank and the received state")
+section("the sheet is a popout on the wishlist graph, not a page of its own")
+LootCheck.Window:Hide()
+assert(LootCheck.Window:Show("sheet") == false, "there is no sheet page left to show")
+
 LootCheck.db.settings.sheetCharacter = subject
-Sheet:Open()
-local page = LootCheckSheetFrame
-assert(page:IsShown(), "the sheet page is up")
-assert(page.head.slot:GetText() == "Slot" and page.head.prio:GetText() == "Rank", "columns are labelled")
-assert(page.summary:GetText():find("wishlist entries", 1, true), page.summary:GetText())
+LootCheck.Graph:SetSheetOpen(false)
+LootCheck.Graph:Open()
+local graph = LootCheckGraphFrame
+local popout = LootCheckGraphFrameSheet
+assert(popout, "the graph page has a popout column")
+assert(not popout:IsShown(), "which starts closed")
+assert((graph.sheetToggle:GetText() or ""):find("Character", 1, true),
+    "the button says what it opens: " .. tostring(graph.sheetToggle:GetText()))
+
+section("opening it widens the window instead of squeezing the other columns")
+local closedW = select(1, LootCheck.Window:ContentSize())
+local closedDrops = LootCheck.Drops.rowCount
+
+click(graph.sheetToggle)
+assert(LootCheck.Graph:SheetOpen(), "the button opened it")
+assert(popout:IsShown(), "and the column is on screen")
+
+local openW = select(1, LootCheck.Window:ContentSize())
+assert(openW > closedW, ("the window widened: %d then %d"):format(closedW, openW))
+assert(openW - closedW >= 300, ("by the width of the column, got %d"):format(openW - closedW))
+assert(LootCheck.Drops.rowCount == closedDrops, "the drops list was not shortened to make room")
+
+-- Closing gives the width back rather than leaving a gap where it was
+click(graph.sheetToggle)
+assert(not LootCheck.Graph:SheetOpen() and not popout:IsShown(), "the button closed it again")
+assert(select(1, LootCheck.Window:ContentSize()) == closedW,
+    "and the window went back to the width it had, got " .. select(1, LootCheck.Window:ContentSize()))
+
+section("the floor makes room for the popout, but only on this page")
+local closedMin = LootCheck.Window:MinimumSize()
+LootCheck.Graph:SetSheetOpen(true)
+local openMin = LootCheck.Window:MinimumSize()
+assert(openMin - closedMin >= 300,
+    ("the floor grows with the popout: %d then %d"):format(closedMin, openMin))
+
+-- Squeezed to nothing, the page still keeps room for all three columns
+LootCheck.Window:Resize(100, 100)
+assert(select(1, LootCheck.Window:ContentSize()) >= openMin,
+    "the graph enforces room for all three columns, got " .. select(1, LootCheck.Window:ContentSize()))
+
+LootCheck.Window:Show("audit")
+assert(LootCheck.Window:MinimumSize() == closedMin,
+    "another page does not inherit a floor for a column it has not got, got "
+    .. LootCheck.Window:MinimumSize())
+LootCheck.Graph:Open()
+
+section("the popout renders, with the rank and the received state")
+LootCheck.Window:Resize(1500, 800)
+assert(popout.head.slot:GetText() == "Slot" and popout.head.prio:GetText() == "Rank", "columns are labelled")
+local sumWanted, sumReceived = Sheet:Summary(Sheet:Selected())
+assert(popout.summary:GetText() == ("%d of %d received"):format(sumReceived, sumWanted),
+    "the summary counts what is left: " .. tostring(popout.summary:GetText()))
 
 local rendered = shownRows()
 assert(#rendered > 0, "rows on screen")
@@ -232,7 +283,7 @@ assert(doomed and doomed ~= shownRows()[1], "there is a row below the first to h
 doomed._scripts.OnEnter(doomed)
 assert(doomed.guideTop:IsShown(), "it is guided before the refresh")
 LootCheck.Sheet.rowCount = 1
-LootCheck.Sheet:Refresh()
+LootCheck.Sheet:RefreshPanel()
 for _, row in ipairs(LootCheck.Sheet._rows) do
     if not row:IsShown() then
         assert(not row.guideTop:IsShown(), "a hidden row must not keep its guide")
@@ -240,19 +291,49 @@ for _, row in ipairs(LootCheck.Sheet._rows) do
 end
 
 LootCheck.Sheet.rowCount = 22
-LootCheck.Sheet:Refresh()
+LootCheck.Sheet:RefreshPanel()
+
+-- The other way a row goes away: it stays inside the row count, but the list
+-- got shorter. That is a different loop in the refresh and it needs the same
+-- clearing, or switching to a raider who wants less leaves a line floating
+-- over an empty row.
+local longest, shortest
+for _, entry in ipairs(Sheet:Characters()) do
+    local n = #Sheet:Rows(entry.value)
+    if not longest or n > longest.n then longest = { value = entry.value, n = n } end
+    if not shortest or n < shortest.n then shortest = { value = entry.value, n = n } end
+end
+
+Sheet:Select(longest.value)
+local tallest = shownRows()[#shownRows()]
+if tallest and #shownRows() > shortest.n then
+    tallest._scripts.OnEnter(tallest)
+    assert(tallest.guideTop:IsShown(), "guided before the list shrinks under it")
+
+    Sheet:Select(shortest.value)
+    for _, row in ipairs(LootCheck.Sheet._rows) do
+        if not row:IsShown() then
+            assert(not row.guideTop:IsShown(), "a row hidden by a shorter list must not keep its guide")
+        end
+    end
+    print(("a %d row sheet shrank to %d"):format(longest.n, shortest.n))
+else
+    print("no raider in this data has a short enough sheet to test the shrink")
+end
+LootCheck.db.settings.sheetCharacter = subject
+Sheet:RefreshPanel()
 
 section("the picker lists every raider and switches between them")
-assert(page.picker, "there is a character picker")
-page.picker:OpenMenu()
+assert(popout.picker, "there is a character picker")
+popout.picker:OpenMenu()
 local offered = 0
-for _, item in ipairs(page.picker._menuItems) do
+for _, item in ipairs(popout.picker._menuItems) do
     if item:IsShown() then offered = offered + 1 end
 end
 assert(offered == #characters, ("one entry per raider: %d of %d"):format(offered, #characters))
 
 local other
-for _, item in ipairs(page.picker._menuItems) do
+for _, item in ipairs(popout.picker._menuItems) do
     if item:IsShown() and item.value ~= subject then other = item break end
 end
 if other then
@@ -261,10 +342,11 @@ if other then
     assert(LootCheck.db.settings.sheetCharacter == target, "picking switches character")
     assert(Sheet:Selected() == target, "and the page follows")
 end
-page.picker:CloseMenu()
+popout.picker:CloseMenu()
 
-section("clicking a raider on the graph opens their sheet")
+section("clicking a raider on the graph pops their sheet out beside the bars")
 LootCheck.Window:Hide()
+LootCheck.Graph:SetSheetOpen(false)
 LootCheck.Graph:Open()
 local bar
 for _, row in ipairs(LootCheck.Graph._rows) do
@@ -273,19 +355,27 @@ end
 assert(bar, "the graph has a bar to click")
 local who = bar.data.normName
 bar._scripts.OnMouseUp(bar)
-assert(LootCheck.Window:Current() == "sheet", "the sheet opened")
+assert(LootCheck.Window:Current() == "graph", "the graph is still the page")
+assert(LootCheck.Graph:SheetOpen() and popout:IsShown(), "the popout came out")
 assert(Sheet:Selected() == who, "on the raider whose bar was clicked")
 
 section("the command opens it, with or without a name")
 LootCheck.Window:Hide()
+LootCheck.Graph:SetSheetOpen(false)
 SlashCmdList.LOOTCHECK("sheet " .. subject)
-assert(LootCheck.Window:Current() == "sheet" and Sheet:Selected() == subject, "/lchelp sheet <name>")
-LootCheck.Window:Hide()
+assert(LootCheck.Window:Current() == "graph" and LootCheck.Graph:SheetOpen(), "/lchelp sheet opens the popout")
+assert(Sheet:Selected() == subject, "on the named raider")
+
 SlashCmdList.LOOTCHECKSHEET("")
-assert(LootCheck.Window:Current() == "sheet", "/lchs opens it")
+assert(not LootCheckWindow:IsShown(), "/lchs with the popout already out closes the window")
+
+SlashCmdList.LOOTCHECKSHEET("")
+assert(LootCheck.Window:Current() == "graph" and LootCheck.Graph:SheetOpen(), "and opens it again")
 LootCheck.Window:Hide()
 
 section("cleanup")
+LootCheck.Graph:SetSheetOpen(false)
 LootCheck.db.settings.sheetCharacter = nil
+LootCheckDB.windowSize = {}
 
 print("\nSHEET TESTS PASSED")

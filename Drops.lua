@@ -24,9 +24,9 @@
     most recent Tuesday 08:00. KEEP_WEEKS of history are kept so the list can
     be stepped back, and anything older is pruned.
 
-    Rare items and up are always recorded; the "Include blue items" box only
-    changes what the list shows, so ticking it later still reveals drops that
-    were stored while it was off.
+    Rare items and up are always recorded; the "Include blue items" and "Gear
+    only" boxes change what the list shows, not what is stored, so ticking
+    either later still reveals drops recorded while it was off.
 ]]
 
 local LC = LootCheck
@@ -529,6 +529,41 @@ function Drops:TestDataCount()
 end
 
 ------------------------------------------------------------------------------
+-- Gear
+------------------------------------------------------------------------------
+
+-- Equip locations that are not gear. The client uses the empty string for
+-- anything that cannot be worn at all, which is what gems, crafting reagents,
+-- recipes and consumables come back as.
+local NOT_GEAR = {
+    [""] = true,
+    INVTYPE_NON_EQUIP = true,
+    INVTYPE_NON_EQUIP_IGNORE = true,
+    INVTYPE_BAG = true,
+    INVTYPE_AMMO = true,
+    INVTYPE_QUIVER = true,
+}
+
+--- true when the item is worn or wielded, false when it plainly is not, and
+--- nil while the client has yet to load the item.
+---
+--- Nil means shown, not hidden: an item cache that has gone cold between raid
+--- nights would otherwise drop real loot off the list, which is a far worse
+--- mistake than listing a gem for as long as it takes the data to arrive.
+function Drops:IsGear(drop)
+    local itemID = tonumber(type(drop) == "table" and drop.itemID or drop)
+    if not itemID then return nil end
+
+    -- Tier tokens are not equippable, so the client files them under junk.
+    -- They are also the most contested gear in the raid.
+    if LC.TokenName and LC:TokenName(itemID) then return true end
+
+    local equipLoc = LC.Sheet and LC.Sheet:EquipLocation(itemID)
+    if type(equipLoc) ~= "string" then return nil end
+    return not NOT_GEAR[equipLoc]
+end
+
+------------------------------------------------------------------------------
 -- The list
 ------------------------------------------------------------------------------
 
@@ -540,13 +575,27 @@ function Drops:List(opts)
     local from, to = self:WeekBounds(opts.weekOffset or self.weekOffset)
     local minQuality = opts.minQuality or (Settings().dropsIncludeRare and self.RECORD_QUALITY or self.SHOW_QUALITY)
 
-    local window = {}
+    local gearOnly = opts.gearOnly
+    if gearOnly == nil then gearOnly = Settings().dropsGearOnly and true or false end
+
+    local window, uncached = {}, nil
     for _, d in ipairs(Log()) do
         local t = tonumber(d.t) or 0
         if t >= from and t < to and (tonumber(d.quality) or 0) >= minQuality then
-            tinsert(window, d)
+            local gear = true
+            if gearOnly then gear = self:IsGear(d) end
+
+            if gear == nil then
+                uncached = uncached or {}
+                uncached[d.itemID] = true
+            end
+            if gear ~= false then tinsert(window, d) end
         end
     end
+
+    -- Ask for anything the client could not answer for, so the list settles
+    -- on its own once the data arrives instead of waiting for a Refresh
+    if uncached and LC.Sheet then LC.Sheet:RequestUncached(uncached) end
 
     -- Oldest first while pairing, so two of the same item line up with the
     -- two awards that followed them, in order
@@ -625,7 +674,8 @@ end
 ------------------------------------------------------------------------------
 
 local ROW_HEIGHT, ROWS, HEAD_HEIGHT = 18, 21, 14 -- ROWS at the natural height
-local RESERVED = 72 -- week stepper, blue-items box, column headings and padding
+local RESERVED = 72 -- week stepper, filter row, column headings and padding
+local FILTER_SPLIT = 134 -- where the second filter's box sits on the filter row
 -- "Tue 09:41" needs the room: at 56 the date was truncating to "Tue 09..."
 local TIME_WIDTH, LOOT_WIDTH, STATUS_WIDTH = 72, 88, 96
 
@@ -696,11 +746,29 @@ function Drops:BuildPanel(container)
     end)
     container.includeRare = includeRare
 
+    -- Both filters share one row, so the list keeps its height. The gear box
+    -- is placed at a fixed offset rather than after the first label, which
+    -- lets that label be bounded against it instead of running underneath.
+    local gearOnly = CreateFrame("CheckButton", "LootCheckDropsGearOnly", container, "UICheckButtonTemplate")
+    gearOnly:SetPoint("LEFT", includeRare, "LEFT", FILTER_SPLIT, 0)
+    gearOnly:SetSize(24, 24)
+    gearOnly:SetScript("OnClick", function(self)
+        Settings().dropsGearOnly = self:GetChecked() and true or false
+        Drops:RefreshPanel()
+    end)
+    container.gearOnly = gearOnly
+
     local rareLabel = LC.Window:Text(container, "GameFontHighlightSmall")
     rareLabel:SetPoint("LEFT", includeRare, "RIGHT", 2, 0)
-    rareLabel:SetPoint("RIGHT", container, "RIGHT", -2, 0)
+    rareLabel:SetPoint("RIGHT", gearOnly, "LEFT", -2, 0)
     rareLabel:SetText("Include blue items")
     container.rareLabel = rareLabel
+
+    local gearLabel = LC.Window:Text(container, "GameFontHighlightSmall")
+    gearLabel:SetPoint("LEFT", gearOnly, "RIGHT", 2, 0)
+    gearLabel:SetPoint("RIGHT", container, "RIGHT", -2, 0)
+    gearLabel:SetText("Gear only")
+    container.gearLabel = gearLabel
 
     local inset = LC.Window:CreateInset(container, "LootCheckDropsInset")
     inset:SetPoint("TOPLEFT", includeRare, "BOTTOMLEFT", 4, -2)
@@ -815,6 +883,7 @@ function Drops:RefreshPanel()
 
     panel.week:SetText(self:WeekLabel(self.weekOffset))
     panel.includeRare:SetChecked(Settings().dropsIncludeRare and true or false)
+    panel.gearOnly:SetChecked(Settings().dropsGearOnly and true or false)
     if self.weekOffset <= 0 then panel.nextWeek:Disable() else panel.nextWeek:Enable() end
     if self.weekOffset >= self.KEEP_WEEKS - 1 then panel.prevWeek:Disable() else panel.prevWeek:Enable() end
 
@@ -858,9 +927,15 @@ function Drops:RefreshPanel()
         #list, awarded, fake > 0 and (" |cffff7f3f(%d test)|r"):format(fake) or ""))
 
     if #list == 0 then
-        panel.empty:SetText(self.weekOffset == 0
-            and "Nothing recorded yet this week. Drops are logged when you open a corpse in a raid."
-            or "Nothing was recorded that week.")
+        -- An empty list with a filter on is worth explaining: it is not the
+        -- same thing as a week where nothing dropped
+        local hidden = Settings().dropsGearOnly and #self:List({ gearOnly = false }) or 0
+
+        panel.empty:SetText(
+            (hidden > 0 and ("%d drop(s) recorded that week, all of them hidden by \"Gear only\"."):format(hidden))
+            or (self.weekOffset == 0
+                and "Nothing recorded yet this week. Drops are logged when you open a corpse in a raid."
+                or "Nothing was recorded that week."))
         panel.empty:Show()
     else
         panel.empty:Hide()

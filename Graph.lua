@@ -12,8 +12,13 @@
     content phase instead, which is a date window (see Phases.lua); the two are
     different questions and a chosen phase takes over from the day count.
 
-    Right: everything that dropped in the raid this week (see Drops.lua),
+    Middle: everything that dropped in the raid this week (see Drops.lua),
     which owns that column and only gets a container frame from here.
+
+    Right: the character sheet (see Sheet.lua), which is a popout rather than a
+    column that is always there. The Character button opens it and widens the
+    window by the width of the column, so the bars and the drops keep the room
+    they had; closing it gives that width back.
 
     The header block is anchored top-down, so a subtitle that wraps pushes the
     list down instead of overlapping it.
@@ -31,12 +36,17 @@ local NAME_WIDTH = 116
 local GAP = 14
 local MIN_LEFT = 320   -- narrower than this and the bars stop meaning anything
 local MIN_DROPS = 360  -- narrower than this and the drops columns collide
+local MIN_SHEET = 300  -- narrower than this and the sheet's three columns collide
 local BAR_SHARE = 0.44 -- of the bar column, once the name and count have theirs
+local SHEET_SHARE = 0.30 -- of the page, once the popout is out
+local SHEET_STEP = 340 -- how much wider the window gets when the popout opens
+local TOGGLE_WIDTH = 116
 
 -- Recomputed on every resize, see Graph:Layout
 local leftWidth = 394
 local contentWidth = leftWidth - 40
 local barMax = 160
+local sheetWidth = 0
 
 local frame -- the page
 local rows = {}
@@ -49,7 +59,17 @@ Graph._rows = rows -- exposed for tests
 local function BuildPage(page)
     frame = page
 
-    page.subtitle = LC.Window:Text(page, "GameFontHighlightSmall", WIDTH - MARGIN * 2)
+    -- The popout toggle keeps the top-right corner of the page to itself, so
+    -- it is in the same place whether or not the popout is out; the subtitle
+    -- is bounded short of it rather than running underneath
+    local sheetToggle = CreateFrame("Button", "LootCheckGraphFrameSheetToggle", page, "UIPanelButtonTemplate")
+    sheetToggle:SetSize(TOGGLE_WIDTH, 20)
+    sheetToggle:SetPoint("TOPRIGHT", page, "TOPRIGHT", -MARGIN, -4)
+    sheetToggle:SetText("Character >>")
+    sheetToggle:SetScript("OnClick", function() Graph:ToggleSheet() end)
+    page.sheetToggle = sheetToggle
+
+    page.subtitle = LC.Window:Text(page, "GameFontHighlightSmall", WIDTH - MARGIN * 2 - TOGGLE_WIDTH - 8)
     page.subtitle:SetPoint("TOPLEFT", MARGIN, -6)
     page.subtitle:SetJustifyH("CENTER")
 
@@ -57,7 +77,7 @@ local function BuildPage(page)
     -- built first so the check box label can be bounded against it
     local refresh = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
     refresh:SetSize(80, 22)
-    refresh:SetPoint("TOPRIGHT", page.subtitle, "BOTTOMRIGHT", 0, -7) -- moved by Layout
+    refresh:SetPoint("TOPRIGHT", page.subtitle, "BOTTOMRIGHT", TOGGLE_WIDTH + 8, -7) -- moved by Layout
     page.refresh = refresh
     refresh:SetText("Refresh")
     refresh:SetScript("OnClick", function()
@@ -131,12 +151,21 @@ local function BuildPage(page)
     page.empty:SetPoint("TOPLEFT", 2, -8)
     page.empty:Hide()
 
-    -- Right column: Drops.lua fills this container itself
+    -- Middle column: Drops.lua fills this container itself
     local dropsColumn = CreateFrame("Frame", "LootCheckGraphFrameDrops", page)
     dropsColumn:SetPoint("TOPLEFT", page.subtitle, "BOTTOMLEFT", leftWidth + GAP, -8) -- moved by Layout
     dropsColumn:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN, 18)
     page.dropsColumn = dropsColumn
     LC.Drops:BuildPanel(dropsColumn)
+
+    -- Right column: the character popout, hidden until the button is pressed.
+    -- Sheet.lua fills it in the same way.
+    local sheetColumn = CreateFrame("Frame", "LootCheckGraphFrameSheet", page)
+    sheetColumn:SetPoint("TOPLEFT", page.subtitle, "BOTTOMLEFT", leftWidth + GAP, -8) -- moved by Layout
+    sheetColumn:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN, 18)
+    sheetColumn:Hide()
+    page.sheetColumn = sheetColumn
+    LC.Sheet:BuildPanel(sheetColumn)
 end
 
 local function GetRow(index)
@@ -149,7 +178,7 @@ local function GetRow(index)
     row:SetScript("OnEnter", function(self) Graph:ShowRowTooltip(self) end)
     row:SetScript("OnLeave", function() GameTooltip:Hide() end)
     -- "Why is this raider's bar so long?" is usually followed by "what else do
-    -- they want?", so a click goes straight to their sheet
+    -- they want?", so a click pops their sheet out beside it
     row:SetScript("OnMouseUp", function(self)
         if self.data and self.data.normName and LC.Sheet then
             LC.Sheet:Open(self.data.normName)
@@ -186,14 +215,58 @@ end
 -- Layout
 ------------------------------------------------------------------------------
 
---- Split the page between the bars and the drops list. Both have a floor, so
---- on a narrow window the drops column keeps enough room for its four columns
---- and the bars keep enough to be worth reading; below that the page simply
---- cannot go, which is what the window's minimum size is for.
+--- Is the character popout out?
+function Graph:SheetOpen()
+    return (LC.db and LC.db.settings and LC.db.settings.graphSheetOpen) and true or false
+end
+
+--- Open or close the character popout. The window grows and shrinks by the
+--- width of the column, so the bars and the drops list keep the room they had
+--- rather than being squeezed to make space for it.
+--- Returns true when it actually changed.
+function Graph:SetSheetOpen(open)
+    open = open and true or false
+    if open == self:SheetOpen() then return false end
+
+    LC.db.settings.graphSheetOpen = open or nil
+
+    -- The window's floor moves with the popout, so resize first (which clamps
+    -- against the new floor) and let the client's bounds catch up after. The
+    -- new size is stored like a dragged one, or closing the window would lose
+    -- the room the popout was given.
+    local w, h = LC.Window:Size()
+    LC.Window:Resize(w + (open and SHEET_STEP or -SHEET_STEP), h)
+    LC.Window:ApplyBounds()
+    LC.Window:SaveSize()
+    return true
+end
+
+function Graph:ToggleSheet()
+    self:SetSheetOpen(not self:SheetOpen())
+end
+
+--- Split the page between the bars, the drops list and - while it is out - the
+--- character popout. Each has a floor, so on a narrow window the drops column
+--- keeps enough room for its four columns and the bars keep enough to be worth
+--- reading; below that the page simply cannot go, which is what the window's
+--- minimum size is for.
 function Graph:Layout(page, w, h)
     if not frame then return end
 
-    local available = w - MARGIN * 2 - GAP
+    local sheetOpen = self:SheetOpen()
+    local available = w - MARGIN * 2 - GAP - (sheetOpen and GAP or 0)
+
+    sheetWidth = 0
+    if sheetOpen then
+        sheetWidth = math.max(MIN_SHEET, math.floor(available * SHEET_SHARE))
+        -- Growing the window on open normally means this never bites, but a
+        -- screen too small to grow into leaves the three to share what there is
+        if available - sheetWidth < MIN_LEFT + MIN_DROPS then
+            sheetWidth = math.max(MIN_SHEET, available - MIN_LEFT - MIN_DROPS)
+        end
+        available = available - sheetWidth
+    end
+
     leftWidth = math.max(MIN_LEFT, math.floor(available * 0.42))
     if available - leftWidth < MIN_DROPS then
         leftWidth = math.max(MIN_LEFT, available - MIN_DROPS)
@@ -203,11 +276,16 @@ function Graph:Layout(page, w, h)
     barMax = math.max(60, math.floor((contentWidth - NAME_WIDTH - 70) * BAR_SHARE) + 60)
 
     local rightInset = w - MARGIN * 2 - leftWidth
+    local dropsInset = sheetOpen and (sheetWidth + GAP) or 0
 
-    frame.subtitle:SetWidth(w - MARGIN * 2)
+    -- The subtitle stops short of the Character button, so its right edge is
+    -- no longer the page's. Anything placed from that edge has to add the
+    -- difference back to reach the edge of the page.
+    local subtitleInset = TOGGLE_WIDTH + 8
+    frame.subtitle:SetWidth(w - MARGIN * 2 - subtitleInset)
 
     frame.refresh:ClearAllPoints()
-    frame.refresh:SetPoint("TOPRIGHT", frame.subtitle, "BOTTOMRIGHT", -rightInset, -7)
+    frame.refresh:SetPoint("TOPRIGHT", frame.subtitle, "BOTTOMRIGHT", subtitleInset - rightInset, -7)
 
     frame.phaseLabel:ClearAllPoints()
     frame.phaseLabel:SetPoint("LEFT", frame.nextPhase, "RIGHT", 6, 0)
@@ -223,7 +301,15 @@ function Graph:Layout(page, w, h)
 
     frame.dropsColumn:ClearAllPoints()
     frame.dropsColumn:SetPoint("TOPLEFT", frame.subtitle, "BOTTOMLEFT", leftWidth + GAP, -8)
-    frame.dropsColumn:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN, 18)
+    frame.dropsColumn:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN - dropsInset, 18)
+
+    -- The popout takes the far right of the page, so it lines up with the
+    -- button that opens it
+    frame.sheetColumn:ClearAllPoints()
+    frame.sheetColumn:SetPoint("TOPLEFT", frame.subtitle, "BOTTOMLEFT", w - MARGIN * 2 - sheetWidth, -8)
+    frame.sheetColumn:SetPoint("BOTTOMRIGHT", page, "BOTTOMRIGHT", -MARGIN, 18)
+
+    frame.sheetToggle:SetText(sheetOpen and "<< Character" or "Character >>")
 
     frame.content:SetWidth(contentWidth)
     frame.empty:SetWidth(contentWidth - 12)
@@ -232,9 +318,16 @@ function Graph:Layout(page, w, h)
         row.track:SetSize(barMax, ROW_HEIGHT - 8)
     end
 
-    -- The drops column owns its own height, so hand it the room it now has
+    -- Both side columns own their own heights, so hand them the room they have
     if LC.Drops and LC.Drops.Layout then
         LC.Drops:Layout(h - 30)
+    end
+
+    if sheetOpen then
+        frame.sheetColumn:Show()
+        if LC.Sheet and LC.Sheet.Layout then LC.Sheet:Layout(h - 30) end
+    else
+        frame.sheetColumn:Hide()
     end
 
     self:Refresh()
@@ -351,6 +444,7 @@ function Graph:Refresh()
     end
 
     LC.Drops:RefreshPanel()
+    if self:SheetOpen() and LC.Sheet then LC.Sheet:RefreshPanel() end
 end
 
 --- Cycle the phase filter: all time, then P1 upwards.
@@ -464,8 +558,16 @@ LC.Window:RegisterPage(PAGE, {
     frameName = "LootCheckGraphFrame",
     width = WIDTH,
     height = HEIGHT,
-    -- Below this the two columns cannot both hold their contents
-    minWidth = MIN_LEFT + MIN_DROPS + MARGIN * 2 + GAP,
+    -- Below this the columns cannot all hold their contents. It is a function
+    -- because the character popout adds a third one: the floor has to make
+    -- room for it while it is out, and only while this page is the one on
+    -- screen, or every other page would inherit a floor for a column it does
+    -- not have.
+    minWidth = function()
+        local extra = (Graph:SheetOpen() and LC.Window:CurrentKey() == PAGE)
+            and (MIN_SHEET + GAP) or 0
+        return MIN_LEFT + MIN_DROPS + MARGIN * 2 + GAP + extra
+    end,
     minHeight = 360,
     build = BuildPage,
     layout = function(page, w, h) Graph:Layout(page, w, h) end,

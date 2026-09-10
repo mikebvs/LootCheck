@@ -64,6 +64,9 @@ end
 for _, keyword in ipairs({ "greyos", "grouponly", "tmbtooltip", "shareedits" }) do
     SlashCmdList.LOOTCHECK(keyword)
 end
+-- "sheet" opened the graph's character popout, which is remembered and widens
+-- the window's floor while it is out; leaving it on would follow this suite
+LootCheck.Graph:SetSheetOpen(false)
 assert(LootCheck.db.settings.greyOSAwards == true and LootCheck.db.settings.graphGroupOnly == false, "toggles restored")
 assert(LootCheck.db.settings.shareEdits == false, "edit sharing left off")
 assert(TMBExportDB.settings.showTooltip == false, "TMBExport tooltip restored")

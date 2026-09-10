@@ -154,7 +154,6 @@ local function BuildPage(page)
     local buttons = {
         { key = "graphButton", text = "Wishlist graph", width = 116, open = function() return LC.Graph end },
         { key = "importsButton", text = "Wishlist Data", width = 116, open = function() return LC.Imports end },
-        { key = "sheetButton", text = "Character", width = 96, open = function() return LC.Sheet end },
         { key = "contestedButton", text = "Contested", width = 96, open = function() return LC.Contested end },
         { key = "auditButton", text = "Audit", width = 76, open = function() return LC.Audit end },
         { key = "councilButton", text = "Loot Council", width = 110, open = function() return LC.Council end },
@@ -200,6 +199,18 @@ function Config:LayoutButtons(page, w)
         end
     end
     if #row > 0 then tinsert(rows, row) end
+
+    -- The widest row, so the overflow this exists to prevent can be asserted
+    -- at any width rather than inferred from the number of rows
+    local widest = 0
+    for _, line in ipairs(rows) do
+        local lineWidth = 0
+        for i, button in ipairs(line) do
+            lineWidth = lineWidth + (button.buttonWidth or 100) + (i > 1 and BUTTON_GAP or 0)
+        end
+        widest = math.max(widest, lineWidth)
+    end
+    page.buttonRowWidth = widest
 
     for index, line in ipairs(rows) do
         local fromBottom = 20 + (#rows - index) * (HEIGHT_OF_ROW + ROW_GAP)
